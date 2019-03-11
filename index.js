@@ -66,8 +66,9 @@ function drawCoords (cWidth, cHeight, multiplier, period) {
   }
 }
 
-function drawChart (data, cWidth, multiplier, firstLineColor) {
-  drawChartLine(data, cWidth, multiplier, firstLineColor)
+function drawChart (firstLine, secondLine, cWidth, multiplier, firstLineColor, secondLineColor) {
+  drawChartLine(firstLine, cWidth, multiplier, firstLineColor)
+  drawChartLine(secondLine, cWidth, multiplier, secondLineColor)
 }
 
 function getXLabels (xData) {
@@ -90,15 +91,17 @@ function init () {
   const parsedData = JSON.parse(data)
   const labels = getXLabels(parsedData[0].columns[0])
   const firstLine = parsedData[0].columns[1].slice(1)
+  const secondLine = parsedData[0].columns[2].slice(1)
   const firstLineColor = parsedData[0]['colors']['y0']
+  const secondLineColor = parsedData[0]['colors']['y1']
   const cWidth = window.innerWidth * 0.9
   const cHeight = CONTAINER_HEIGHT + 20 // for bottom labels
-  const maxVal = Math.max(...firstLine)
+  const maxVal = Math.max(...firstLine.concat(secondLine))
   const multiplier = getMultiplier(maxVal)
   const period = getPeriod(maxVal)
   drawCoords(cWidth, cHeight, multiplier, period)
   writeCoordsText(labels, cWidth, multiplier, period)
-  drawChart(firstLine, cWidth, multiplier, firstLineColor)
+  drawChart(firstLine, secondLine, cWidth, multiplier, firstLineColor, secondLineColor)
 }
 
 init()
