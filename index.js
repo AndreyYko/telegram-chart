@@ -42,7 +42,7 @@ function drawChartLine (data, cWidth, multiplier, color) {
   ctx.stroke()
 }
 
-function writeCoordsText (labels, cWidth, multiplier, period) {
+function writeCoordsText (xLabels, cWidth, multiplier, period) {
   ctx.font = '14px Arial'
   for (let i = 0; i < 6; i++) {
     const point = Math.floor(period * multiplier)
@@ -52,7 +52,7 @@ function writeCoordsText (labels, cWidth, multiplier, period) {
   for (let i = 0; i < 6; i++) {
     let x = (cWidth / 5) * i
     if (i === 5) x -= 45 // for last bottom label overflowing
-    ctx.fillText(labels[i], x, CONTAINER_HEIGHT + 20)
+    ctx.fillText(xLabels[i], x, CONTAINER_HEIGHT + 20)
   }
 }
 
@@ -66,7 +66,16 @@ function drawCoords (cWidth, cHeight, multiplier, period) {
   }
 }
 
-function drawChart (firstLine, secondLine, cWidth, multiplier, firstLineColor, secondLineColor) {
+function drawChart (cWidth, cHeight, chartData) {
+  const { columns, colors } = chartData
+  const [ x, firstLine, secondLine ] = columns
+  const { y0: firstLineColor, y1: secondLineColor } = colors
+  const maxVal = Math.max(...firstLine.slice(1).concat(secondLine.slice(1)))
+  const xLabels = getXLabels(x)
+  const multiplier = getMultiplier(maxVal)
+  const period = getPeriod(maxVal)
+  drawCoords(cWidth, cHeight, multiplier, period)
+  writeCoordsText(xLabels, cWidth, multiplier, period)
   drawChartLine(firstLine, cWidth, multiplier, firstLineColor)
   drawChartLine(secondLine, cWidth, multiplier, secondLineColor)
 }
@@ -89,19 +98,11 @@ function getXLabels (xData) {
 
 function init () {
   const parsedData = JSON.parse(data)
-  const labels = getXLabels(parsedData[0].columns[0])
-  const firstLine = parsedData[0].columns[1].slice(1)
-  const secondLine = parsedData[0].columns[2].slice(1)
-  const firstLineColor = parsedData[0]['colors']['y0']
-  const secondLineColor = parsedData[0]['colors']['y1']
   const cWidth = window.innerWidth * 0.9
   const cHeight = CONTAINER_HEIGHT + 20 // for bottom labels
-  const maxVal = Math.max(...firstLine.concat(secondLine))
-  const multiplier = getMultiplier(maxVal)
-  const period = getPeriod(maxVal)
-  drawCoords(cWidth, cHeight, multiplier, period)
-  writeCoordsText(labels, cWidth, multiplier, period)
-  drawChart(firstLine, secondLine, cWidth, multiplier, firstLineColor, secondLineColor)
+
+
+  drawChart(cWidth, cHeight, parsedData[0])
 }
 
 init()
