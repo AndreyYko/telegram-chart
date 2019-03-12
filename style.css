@@ -1,11 +1,13 @@
 body {
   margin: 0;
-  padding: 0;
-  display: flex;
-  justify-content: center;
+  padding: 420px 0 0 0;
 }
 
-#canvas {
-  /*width: 90%;*/
-  /*height: 300px;*/
+canvas {
+  display: block;
+  margin: 0 auto;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
 }

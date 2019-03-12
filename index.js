@@ -5,9 +5,14 @@ const data = '[{"columns":[["x",1542412800000,1542499200000,1542585600000,154267
 const CONTAINER_HEIGHT = 400
 const CHART_HEIGHT = 360
 
+const LINE_WIDTH = 4
+
 const GREY = '#8c8c8c'
 const RED = '#ff0000'
 const GREEN = '#10ff00'
+
+const cWidth = window.innerWidth * 0.9
+const cHeight = CONTAINER_HEIGHT + 20 // for bottom labels
 
 function getMultiplier (value) {
   return CHART_HEIGHT / value
@@ -26,10 +31,10 @@ function drawLine (x1, y1, x2, y2, color, width = 1) {
   ctx.stroke()
 }
 
-function drawChartLine (data, cWidth, multiplier, color) {
+function drawChartLine (data, multiplier, color, width = LINE_WIDTH) {
   ctx.beginPath()
   ctx.strokeStyle = color
-  ctx.lineWidth = 4
+  ctx.lineWidth = width
   ctx.lineJoin = 'round'
   const xStart = 0
   const yStart = Math.floor(CONTAINER_HEIGHT - (data[0] * multiplier))
@@ -42,7 +47,7 @@ function drawChartLine (data, cWidth, multiplier, color) {
   ctx.stroke()
 }
 
-function writeCoordsText (xLabels, cWidth, multiplier, period) {
+function writeCoordsText (xLabels, multiplier, period) {
   ctx.font = '14px Arial'
   for (let i = 0; i < 6; i++) {
     const point = Math.floor(period * multiplier)
@@ -56,7 +61,7 @@ function writeCoordsText (xLabels, cWidth, multiplier, period) {
   }
 }
 
-function drawCoords (cWidth, cHeight, multiplier, period) {
+function drawCoords (multiplier, period) {
   canvas.setAttribute('width', `${cWidth}`)
   canvas.setAttribute('height', `${cHeight}`)
   const point = Math.floor(period * multiplier)
@@ -66,19 +71,33 @@ function drawCoords (cWidth, cHeight, multiplier, period) {
   }
 }
 
-function drawChart (cWidth, cHeight, chartData) {
+function calculateChartData (chartData) {
   const { columns, colors } = chartData
   const [ x, firstLine, secondLine ] = columns
+  const firstLineSliced = firstLine.slice(1)
+  const secondLineSliced = secondLine.slice(1)
   const { y0: firstLineColor, y1: secondLineColor } = colors
-  const maxVal = Math.max(...firstLine.slice(1).concat(secondLine.slice(1)))
+  const maxVal = Math.max(...firstLineSliced.concat(secondLineSliced))
   const xLabels = getXLabels(x)
   const multiplier = getMultiplier(maxVal)
   const period = getPeriod(maxVal)
-  drawCoords(cWidth, cHeight, multiplier, period)
-  writeCoordsText(xLabels, cWidth, multiplier, period)
-  drawChartLine(firstLine, cWidth, multiplier, firstLineColor)
-  drawChartLine(secondLine, cWidth, multiplier, secondLineColor)
+  return { firstLine: firstLineSliced, secondLine: secondLineSliced, firstLineColor, secondLineColor, xLabels, multiplier, period }
 }
+
+function drawChart (chartData) {
+  const { firstLine, secondLine, firstLineColor, secondLineColor, xLabels, multiplier, period } = chartData
+  drawCoords(multiplier, period)
+  writeCoordsText(xLabels, multiplier, period)
+  drawChartLine(firstLine, multiplier, firstLineColor)
+  drawChartLine(secondLine, multiplier, secondLineColor)
+}
+
+function destroyChartLine (chartData, line) {
+  const { firstLine, secondLine, firstLineColor, secondLineColor, multiplier, period } = chartData
+  // drawChartLine(chartData[line], multiplier, '#fff', LINE_WIDTH + 2)
+  drawCoords(multiplier, period)
+}
+
 
 function getXLabels (xData) {
   const clearData = xData.slice(1)
@@ -98,11 +117,12 @@ function getXLabels (xData) {
 
 function init () {
   const parsedData = JSON.parse(data)
-  const cWidth = window.innerWidth * 0.9
-  const cHeight = CONTAINER_HEIGHT + 20 // for bottom labels
-
-
-  drawChart(cWidth, cHeight, parsedData[0])
+  // console.log(parsedData)
+  const [firstChart, secondChart, thirdChart, fourthChart, fifthChart] = parsedData
+  const chart1 = calculateChartData(fifthChart)
+  drawChart(chart1)
+  document.querySelector('#button').addEventListener('click', () => destroyChartLine(chart1, 'firstLine'))
 }
+
 
 init()
