@@ -31,7 +31,7 @@ function initChart (chartData) {
   const parsedChardData = calculateChartData(chartData)
   drawChart({ ...parsedChardData, bgCtx, flCtx, slCtx })
 
-  return { ...parsedChardData, bgCtx, flCtx, slCtx }
+  return { ...parsedChardData, bgCtx, flCtx, slCtx, isVisible: true }
 }
 
 function getMultiplier (value) {
@@ -57,11 +57,11 @@ function drawChartLine (lineCtx, data, multiplier, color, width = LINE_WIDTH, de
   lineCtx.lineWidth = width
   lineCtx.lineJoin = 'round'
   const xStart = 0
-  const yStart = Math.floor(CONTAINER_HEIGHT - ((data[0] + decr) * multiplier))
+  const yStart = Math.floor(CONTAINER_HEIGHT - ((data[0] + decr) * (multiplier * (decr + 1))))
   lineCtx.moveTo(xStart, yStart)
   for (let i = 1; i < data.length; i++) {
     const xNext = Math.floor((cWidth / data.length) * i)
-    const yNext = Math.floor(CONTAINER_HEIGHT - ((data[i] + decr) * multiplier))
+    const yNext = Math.floor(CONTAINER_HEIGHT - ((data[i] + decr) * (multiplier * (decr + 1))))
     lineCtx.lineTo(xNext, yNext)
   }
   lineCtx.stroke()
@@ -110,18 +110,34 @@ function drawChart (chartData) {
   // drawChartLine(secondLine, multiplier, secondLineColor)
 }
 
-function destroyChartLine (chartData, line) {
-  const { firstLine, secondLine, firstLineColor, secondLineColor, multiplier, period, bgCtx, flCtx, slCtx } = chartData
-  let decr = 0
-  function destroyChartLineAnimation () {
-    const req = requestAnimationFrame(destroyChartLineAnimation)
+function toogleChartLine (chartData, line) {
+  const {
+    firstLine,
+    secondLine,
+    firstLineColor,
+    secondLineColor,
+    multiplier,
+    period,
+    bgCtx,
+    flCtx,
+    slCtx,
+    isVisible
+  } = chartData
+  chartData.isVisible = !isVisible
+  let decr = isVisible ? 0 : 1
+  function toggleChartLineAnimation () {
+    const req = requestAnimationFrame(toggleChartLineAnimation)
+    if (decr.toFixed(1) === (isVisible ? '1.0' : '0.0')) {
+      flCtx.globalAlpha = isVisible ? 0 : 1
+      cancelAnimationFrame(req)
+    }
     flCtx.clearRect(0, 0, cWidth, cHeight)
     drawChartLine(flCtx, firstLine, multiplier, firstLineColor, LINE_WIDTH, decr)
-    decr += 10
+    flCtx.globalAlpha = 1 - decr
+    decr = isVisible ? decr + 0.1 : decr - 0.1
   }
-  destroyChartLineAnimation()
+  toggleChartLineAnimation()
 }
-
 
 function getXLabels (xData) {
   const clearData = xData.slice(1)
@@ -143,7 +159,7 @@ function init () {
   const parsedData = JSON.parse(data)
   const [firstChart, secondChart, thirdChart, fourthChart, fifthChart] = parsedData
   const chart = initChart(firstChart)
-  document.querySelector('#button').addEventListener('click', () => destroyChartLine(chart, 'firstLine'))
+  document.querySelector('#button').addEventListener('click', () => toogleChartLine(chart, 'firstLine'))
 }
 
 
