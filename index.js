@@ -5,33 +5,49 @@ const CHART_HEIGHT = 360
 
 const LINE_WIDTH = 4
 
-const GREY = '#8c8c8c'
-const RED = '#ff0000'
-const GREEN = '#10ff00'
+const GREY = '#cccccc'
 
 const cWidth = window.innerWidth * 0.9
 const cHeight = CONTAINER_HEIGHT + 20 // for bottom labels
 
 function initChart (chartData) {
-  const chartBgCanvas = document.createElement('canvas')
-  const chartFLCanvas = document.createElement('canvas')
-  const chartSLCanvas = document.createElement('canvas')
-  chartBgCanvas.setAttribute('width', cWidth)
-  chartBgCanvas.setAttribute('height', cHeight)
-  chartFLCanvas.setAttribute('width', cWidth)
-  chartFLCanvas.setAttribute('height', cHeight)
-  chartSLCanvas.setAttribute('width', cWidth)
-  chartSLCanvas.setAttribute('height', cHeight)
-  document.body.appendChild(chartBgCanvas)
-  document.body.appendChild(chartFLCanvas)
-  document.body.appendChild(chartSLCanvas)
-  const bgCtx = chartBgCanvas.getContext('2d')
-  const flCtx = chartFLCanvas.getContext('2d')
-  const slCtx = chartSLCanvas.getContext('2d')
-  const parsedChardData = calculateChartData(chartData)
-  drawChart({ ...parsedChardData, bgCtx, flCtx, slCtx })
+  let parsedChardData = calculateChartData(chartData)
+  parsedChardData = createCanvasesAndContexts(parsedChardData)
+  console.log(parsedChardData)
+  // drawChart({ ...parsedChardData, bgCtx, flCtx, slCtx })
+  // parsedChardData['buttons'] = {}
+  // const { types, names, colors, buttons } = parsedChardData
+  // createChartButtons(names, types, colors, buttons)
+  // return { ...parsedChardData, bgCtx, flCtx, slCtx, isVisible: true }
+}
 
-  return { ...parsedChardData, bgCtx, flCtx, slCtx, isVisible: true }
+function createCanvasesAndContexts (chartData) {
+  const { columns } = chartData
+  chartData['contexts'] = {}
+  Object.keys(columns).forEach(key => {
+    const canvas = document.createElement('canvas')
+    canvas.setAttribute('width', cWidth)
+    canvas.setAttribute('height', cHeight)
+    document.body.appendChild(canvas)
+    chartData.contexts[key] = canvas.getContext('2d')
+  })
+  return chartData
+}
+
+function createChartButtons (names, types, colors, buttonsArray) {
+  const lines = Object.keys(types).filter(key => types[key] === 'line')
+  lines.forEach((line) => {
+    const button = document.createElement('button')
+    const mark = document.createElement('mark')
+    const span = document.createElement('span')
+    mark.style.backgroundColor = colors[line]
+    span.innerText = names[line]
+    button.appendChild(mark)
+    button.appendChild(span)
+    button.addEventListener('click', toggleChartLine)
+    buttonsArray[line] = button
+    document.querySelector('.buttons').appendChild(button)
+  })
 }
 
 function getMultiplier (value) {
@@ -69,6 +85,7 @@ function drawChartLine (lineCtx, data, multiplier, color, width = LINE_WIDTH, de
 
 function writeCoordsText (bgCtx, xLabels, multiplier, period) {
   bgCtx.font = '14px Arial'
+  bgCtx.fillStyle = GREY
   for (let i = 0; i < 6; i++) {
     const point = Math.floor(period * multiplier)
     const y = CONTAINER_HEIGHT - (point * i)
@@ -90,16 +107,17 @@ function drawCoords (bgCtx, multiplier, period) {
 }
 
 function calculateChartData (chartData) {
-  const { columns, colors } = chartData
-  const [ x, firstLine, secondLine ] = columns
-  const firstLineSliced = firstLine.slice(1)
-  const secondLineSliced = secondLine.slice(1)
-  const { y0: firstLineColor, y1: secondLineColor } = colors
-  const maxVal = Math.max(...firstLineSliced.concat(secondLineSliced))
-  const xLabels = getXLabels(x)
-  const multiplier = getMultiplier(maxVal)
-  const period = getPeriod(maxVal)
-  return { firstLine: firstLineSliced, secondLine: secondLineSliced, firstLineColor, secondLineColor, xLabels, multiplier, period }
+  const { columns } = chartData
+  chartData['columns'] = {}
+  chartData['maxValues'] = {}
+  columns.forEach(column => {
+    const label = column[0]
+    column = column.slice(1)
+    chartData.columns[label] = column
+    if (label !== 'x') chartData.maxValues[label] = Math.max(...column)
+  })
+  // Math.max(...Object.values(chartData.maxValues)) .filter !!!!
+  return chartData
 }
 
 function drawChart (chartData) {
@@ -110,7 +128,7 @@ function drawChart (chartData) {
   // drawChartLine(secondLine, multiplier, secondLineColor)
 }
 
-function toogleChartLine (chartData, line) {
+function toggleChartLine (chartData, line, button) {
   const {
     firstLine,
     secondLine,
@@ -158,8 +176,7 @@ function getXLabels (xData) {
 function init () {
   const parsedData = JSON.parse(data)
   const [firstChart, secondChart, thirdChart, fourthChart, fifthChart] = parsedData
-  const chart = initChart(firstChart)
-  document.querySelector('#button').addEventListener('click', () => toogleChartLine(chart, 'firstLine'))
+  initChart(firstChart)
 }
 
 

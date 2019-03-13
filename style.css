@@ -1,6 +1,7 @@
 body {
-  margin: 0;
-  padding: 420px 0 0 0;
+  width: 90%;
+  margin: 0 auto;
+  padding: 440px 0 0 0;
 }
 
 canvas {
@@ -10,4 +11,38 @@ canvas {
   top: 0;
   left: 0;
   right: 0;
+}
+
+.buttons {
+  display: flex;
+}
+
+button {
+  background: transparent;
+  border: 1px solid #cccccc;
+  padding: 10px 15px 10px 40px;
+  border-radius: 20px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  outline: none;
+  margin-right: 15px;
+  cursor: pointer;
+}
+
+button:last-child {
+  margin-right: 0;
+}
+
+button mark {
+  left: 5px;
+  position: absolute;
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  background-image: url('check-solid.svg');
+  background-repeat: no-repeat;
+  background-position: center;
+  -webkit-background-size: 15px;
+  background-size: 15px;
 }
