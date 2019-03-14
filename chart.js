@@ -9,195 +9,35 @@ const GREY = '#cccccc'
 
 const cWidth = window.innerWidth * 0.9
 const cHeight = CONTAINER_HEIGHT + 20 // for bottom labels
+document.body.style.width = cWidth
 
-function initChart (chartData) {
-  let data = calculateChartData(chartData)
-  data = createCanvasesAndContexts(data)
-  data = createChartButtons(data)
-  console.log(data)
-  const { colors, columns, contexts, isVisible, maxValues } = data
-  drawChart(colors, columns, contexts, isVisible, maxValues)
-  // const { types, names, colors, buttons } = parsedChardData
-  // return { ...parsedChardData, bgCtx, flCtx, slCtx, isVisible: true }
-}
+class Chart {
+  bgCtx = null
+  xLabelsCtx = null
+  yLabelsCtx = null
+  columns = []
 
-function createCanvasesAndContexts (chartData) {
-  const data = { ...chartData }
-  const { columns } = data
-  data['contexts'] = {}
-  Object.keys(columns).forEach(key => {
+  constructor (name, data) {
+    this.bgCtx = this.createCanvasContext(`${name}__bg`)
+    this.xLabelsCtx = this.createCanvasContext(`${name}__xl`)
+    this.yLabelsCtx = this.createCanvasContext(`${name}__yl`)
+    console.log(this)
+  }
+
+  createCanvasContext (id) {
     const canvas = document.createElement('canvas')
     canvas.setAttribute('width', cWidth)
     canvas.setAttribute('height', cHeight)
-    document.body.appendChild(canvas)
-    data.contexts[key === 'x' ? 'bg' : key] = canvas.getContext('2d')
-  })
-  return data
-}
-
-function createChartButtons (chartData) {
-  const data = { ...chartData }
-  const { types, names, colors } = data
-  data['buttons'] = {}
-  Object
-    .keys(types)
-    .filter(key => types[key] === 'line')
-    .forEach(key => {
-      const button = document.createElement('button')
-      const mark = document.createElement('mark')
-      const span = document.createElement('span')
-      mark.style.backgroundColor = colors[key]
-      span.innerText = names[key]
-      button.appendChild(mark)
-      button.appendChild(span)
-      button.addEventListener('click', toggleChartLine.bind(event, key, data))
-      document.querySelector('.buttons').appendChild(button)
-      data.buttons[key] = button
-    })
-  return data
-}
-
-function getMultiplier (value) {
-  return CHART_HEIGHT / value
-}
-
-function getPeriod (value) {
-  return (value - (value % 5)) / 5
-}
-
-function drawLine (bgCtx, x1, y1, x2, y2, color, width = 1) {
-  bgCtx.beginPath()
-  bgCtx.moveTo(x1 - 0.5, y1 - 0.5)
-  bgCtx.lineTo(x2 - 0.5, y2 - 0.5)
-  bgCtx.strokeStyle = color
-  bgCtx.lineWidth = width
-  bgCtx.stroke()
-}
-
-function drawChartLine (lineCtx, data, multiplier, color, decr = 0) {
-  lineCtx.clearRect(0, 0, cWidth, cHeight)
-  lineCtx.beginPath()
-  lineCtx.strokeStyle = color
-  lineCtx.lineWidth = LINE_WIDTH
-  lineCtx.lineJoin = 'round'
-  const xStart = 0
-  const yStart = Math.floor(CONTAINER_HEIGHT - ((data[0] + decr) * (multiplier * (decr + 1))))
-  lineCtx.moveTo(xStart, yStart)
-  for (let i = 1; i < data.length; i++) {
-    const xNext = Math.floor((cWidth / data.length) * i)
-    const yNext = Math.floor(CONTAINER_HEIGHT - ((data[i] + decr) * (multiplier * (decr + 1))))
-    lineCtx.lineTo(xNext, yNext)
+    canvas.setAttribute('id', id)
+    document.querySelector('.canvases').appendChild(canvas)
+    return canvas.getContext('2d')
   }
-  lineCtx.stroke()
-}
-
-function writeCoordsText (bgCtx, x, multiplier, period) {
-  // bgCtx.clearRect(0, 0, cWidth, cHeight)
-  const xLabels = getXLabels(x)
-  bgCtx.font = '14px Arial'
-  bgCtx.fillStyle = GREY
-  for (let i = 0; i < 6; i++) {
-    const point = Math.floor(period * multiplier)
-    const y = CONTAINER_HEIGHT - (point * i)
-    bgCtx.fillText(`${Math.floor(i * period)}`, 0, y - 5) // -5 for label visibility
-  }
-  for (let i = 0; i < 6; i++) {
-    let x = (cWidth / 5) * i
-    if (i === 5) x -= 45 // for last bottom label overflowing
-    bgCtx.fillText(xLabels[i], x, CONTAINER_HEIGHT + 20)
-  }
-}
-
-function drawCoords (bgCtx, multiplier, period) {
-  const point = Math.floor(period * multiplier)
-  for (let i = 0; i < 6; i++) {
-    const y = CONTAINER_HEIGHT - (point * i)
-    drawLine(bgCtx, 0, y, cWidth, y, GREY)
-  }
-}
-
-function calculateChartData (chartData) {
-  const data = { ...chartData }
-  const { columns } = data
-  data['columns'] = {}
-  data['maxValues'] = {}
-  data['isVisible'] = {}
-  columns.forEach(column => {
-    const label = column[0]
-    column = column.slice(1)
-    data.columns[label] = column
-    if (label !== 'x') {
-      data.maxValues[label] = Math.max(...column)
-      data.isVisible[label] = true
-    }
-  })
-  return data
-}
-
-function drawChart (colors, columns, contexts, isVisible, maxValues) {
-  const { bg } = contexts
-  const { x } = columns
-  const maxValue = Math.max(...Object
-    .keys(isVisible)
-    .filter(key => isVisible[key])
-    .map(key => maxValues[key]))
-  // const test = maxValues.y1
-  const multiplier = getMultiplier(maxValue)
-  const period = getPeriod(maxValue)
-  drawCoords(bg, multiplier, period)
-  writeCoordsText(bg, x, multiplier, period)
-  Object
-    .keys(columns)
-    .filter(key => key !== 'x')
-    .forEach(key => drawChartLine(contexts[key], columns[key], multiplier, colors[key]))
-}
-
-function toggleChartLine (line, chartData, event) {
-  const {
-    buttons,
-    isVisible,
-    contexts,
-    maxValues
-  } = chartData
-  const isLineVisible = isVisible[line]
-  chartData.isVisible[line] = !isLineVisible
-  drawChart(chartData.colors, chartData.columns, chartData.contexts, chartData.isVisible, chartData.maxValues)
-  // chartData.isVisible = !isVisible
-  // let decr = isVisible ? 0 : 1
-  // function toggleChartLineAnimation () {
-  //   const req = requestAnimationFrame(toggleChartLineAnimation)
-  //   if (decr.toFixed(1) === (isVisible ? '1.0' : '0.0')) {
-  //     flCtx.globalAlpha = isVisible ? 0 : 1
-  //     cancelAnimationFrame(req)
-  //   }
-  //   flCtx.clearRect(0, 0, cWidth, cHeight)
-  //   drawChartLine(flCtx, firstLine, multiplier, firstLineColor, LINE_WIDTH, decr)
-  //   flCtx.globalAlpha = 1 - decr
-  //   decr = isVisible ? decr + 0.1 : decr - 0.1
-  // }
-  // toggleChartLineAnimation()
-}
-
-function getXLabels (xData) {
-  const clearData = xData.slice(1)
-  const interval = Math.floor(clearData.length / 6)
-  let res = []
-  for (let i = 0; i < 6; i++) {
-    if (i === 5) {
-      res.push(clearData[clearData.length - 1])
-    } else {
-      res.push(clearData[interval * i])
-    }
-  }
-  return res
-      .map(item => new Date(item).toUTCString().slice(5, 11))
-      .map(item => item.split(' ').reverse().join(' '))
 }
 
 function init () {
   const parsedData = JSON.parse(data)
   const [firstChart, secondChart, thirdChart, fourthChart, fifthChart] = parsedData
-  initChart(firstChart)
+  new Chart('first-chart', firstChart)
 }
 
 
