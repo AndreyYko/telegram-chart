@@ -138,8 +138,18 @@ class Chart {
   }
   toggleChartLine (name) {
     const column = this.columns.find(column => column.name === name)
-    column.isVisible = !column.isVisible
+    const { isVisible } = column
+    column.isVisible = !isVisible
+    this.changeButtonStyle(name)
     this.drawChart()
+  }
+  changeButtonStyle (name) {
+    const { button, color, isVisible } = this.columns.find(column => column.name === name)
+    const mark = button.querySelector('mark')
+    mark.style.backgroundColor = !isVisible ? '#fff' : color
+    mark.style.width = !isVisible ? '21px' : '25px'
+    mark.style.height = !isVisible ? '21px' : '25px'
+    mark.style.border = !isVisible ? `2px solid ${color}` : 'none'
   }
 }
 
