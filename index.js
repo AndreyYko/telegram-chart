@@ -11,43 +11,50 @@ const cWidth = window.innerWidth * 0.9
 const cHeight = CONTAINER_HEIGHT + 20 // for bottom labels
 
 function initChart (chartData) {
-  let parsedChardData = calculateChartData(chartData)
-  parsedChardData = createCanvasesAndContexts(parsedChardData)
-  console.log(parsedChardData)
-  // drawChart({ ...parsedChardData, bgCtx, flCtx, slCtx })
-  // parsedChardData['buttons'] = {}
+  let data = calculateChartData(chartData)
+  data = createCanvasesAndContexts(data)
+  data = createChartButtons(data)
+  console.log(data)
+  const { colors, columns, contexts, isVisible, maxValues } = data
+  drawChart(colors, columns, contexts, isVisible, maxValues)
   // const { types, names, colors, buttons } = parsedChardData
-  // createChartButtons(names, types, colors, buttons)
   // return { ...parsedChardData, bgCtx, flCtx, slCtx, isVisible: true }
 }
 
 function createCanvasesAndContexts (chartData) {
-  const { columns } = chartData
-  chartData['contexts'] = {}
+  const data = { ...chartData }
+  const { columns } = data
+  data['contexts'] = {}
   Object.keys(columns).forEach(key => {
     const canvas = document.createElement('canvas')
     canvas.setAttribute('width', cWidth)
     canvas.setAttribute('height', cHeight)
     document.body.appendChild(canvas)
-    chartData.contexts[key] = canvas.getContext('2d')
+    data.contexts[key === 'x' ? 'bg' : key] = canvas.getContext('2d')
   })
-  return chartData
+  return data
 }
 
-function createChartButtons (names, types, colors, buttonsArray) {
-  const lines = Object.keys(types).filter(key => types[key] === 'line')
-  lines.forEach((line) => {
-    const button = document.createElement('button')
-    const mark = document.createElement('mark')
-    const span = document.createElement('span')
-    mark.style.backgroundColor = colors[line]
-    span.innerText = names[line]
-    button.appendChild(mark)
-    button.appendChild(span)
-    button.addEventListener('click', toggleChartLine)
-    buttonsArray[line] = button
-    document.querySelector('.buttons').appendChild(button)
-  })
+function createChartButtons (chartData) {
+  const data = { ...chartData }
+  const { types, names, colors } = data
+  data['buttons'] = {}
+  Object
+    .keys(types)
+    .filter(key => types[key] === 'line')
+    .forEach(key => {
+      const button = document.createElement('button')
+      const mark = document.createElement('mark')
+      const span = document.createElement('span')
+      mark.style.backgroundColor = colors[key]
+      span.innerText = names[key]
+      button.appendChild(mark)
+      button.appendChild(span)
+      button.addEventListener('click', toggleChartLine)
+      document.querySelector('.buttons').appendChild(button)
+      data.buttons[key] = button
+    })
+  return data
 }
 
 function getMultiplier (value) {
@@ -67,10 +74,10 @@ function drawLine (bgCtx, x1, y1, x2, y2, color, width = 1) {
   bgCtx.stroke()
 }
 
-function drawChartLine (lineCtx, data, multiplier, color, width = LINE_WIDTH, decr = 0) {
+function drawChartLine (lineCtx, data, multiplier, color, decr = 0) {
   lineCtx.beginPath()
   lineCtx.strokeStyle = color
-  lineCtx.lineWidth = width
+  lineCtx.lineWidth = LINE_WIDTH
   lineCtx.lineJoin = 'round'
   const xStart = 0
   const yStart = Math.floor(CONTAINER_HEIGHT - ((data[0] + decr) * (multiplier * (decr + 1))))
@@ -83,7 +90,8 @@ function drawChartLine (lineCtx, data, multiplier, color, width = LINE_WIDTH, de
   lineCtx.stroke()
 }
 
-function writeCoordsText (bgCtx, xLabels, multiplier, period) {
+function writeCoordsText (bgCtx, x, multiplier, period) {
+  const xLabels = getXLabels(x)
   bgCtx.font = '14px Arial'
   bgCtx.fillStyle = GREY
   for (let i = 0; i < 6; i++) {
@@ -107,25 +115,39 @@ function drawCoords (bgCtx, multiplier, period) {
 }
 
 function calculateChartData (chartData) {
-  const { columns } = chartData
-  chartData['columns'] = {}
-  chartData['maxValues'] = {}
+  const data = { ...chartData }
+  const { columns } = data
+  data['columns'] = {}
+  data['maxValues'] = {}
+  data['isVisible'] = {}
   columns.forEach(column => {
     const label = column[0]
     column = column.slice(1)
-    chartData.columns[label] = column
-    if (label !== 'x') chartData.maxValues[label] = Math.max(...column)
+    data.columns[label] = column
+    if (label !== 'x') {
+      data.maxValues[label] = Math.max(...column)
+      data.isVisible[label] = true
+    }
   })
-  // Math.max(...Object.values(chartData.maxValues)) .filter !!!!
-  return chartData
+  return data
 }
 
-function drawChart (chartData) {
-  const { firstLine, secondLine, firstLineColor, secondLineColor, xLabels, multiplier, period, bgCtx, flCtx, slCtx } = chartData
-  drawCoords(bgCtx, multiplier, period)
-  writeCoordsText(bgCtx, xLabels, multiplier, period)
-  drawChartLine(flCtx, firstLine, multiplier, firstLineColor)
-  // drawChartLine(secondLine, multiplier, secondLineColor)
+function drawChart (colors, columns, contexts, isVisible, maxValues) {
+  const { bg } = contexts
+  const { x } = columns
+  const maxValue = Math.max(...Object
+    .keys(isVisible)
+    .filter(key => isVisible[key])
+    .map(key => maxValues[key]))
+  // const test = maxValues.y1
+  const multiplier = getMultiplier(maxValue)
+  const period = getPeriod(maxValue)
+  drawCoords(bg, multiplier, period)
+  writeCoordsText(bg, x, multiplier, period)
+  Object
+    .keys(columns)
+    .filter(key => key !== 'x')
+    .forEach(key => drawChartLine(contexts[key], columns[key], multiplier, colors[key]))
 }
 
 function toggleChartLine (chartData, line, button) {
