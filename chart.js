@@ -84,19 +84,39 @@ class Chart {
     })
   }
   drawChart () {
-    const maxValue = Math.max(...this.columns
-      .filter(column => column.isVisible)
-      .map(column => column.max)
+    const maxValue = Math.max(
+      ...this.columns
+        .filter(column => column.isVisible)
+        .map(column => column.max)
     )
     this.currentPeriod = getPeriod(maxValue)
     this.currentMultiplier = getMultiplier(this.currentPeriod)
     this.drawCoords()
     this.writeCoordsText()
     this.columns
-      // .filter(column => column.isVisible)
+      .filter(column => column.isVisible)
       .forEach(column => {
         this.drawChartLine(column)
       })
+  }
+  redrawChartWithAnimation (toggledColumnName) {
+    const maxValue = Math.max(
+      ...this.columns
+        .filter(column => column.isVisible)
+        .map(column => column.max)
+    )
+    const toggledColumn = this.columns.find(column => column.name === toggledColumnName)
+    const prevPeriod = this.currentPeriod
+    this.currentPeriod = getPeriod(maxValue)
+    this.currentMultiplier = getMultiplier(this.currentPeriod)
+    if (prevPeriod > this.currentPeriod) {
+      // this mean that user toggle off most bigger line
+      // need to increase chart
+    } else if (prevPeriod < this.currentPeriod) {
+      // this mean that user toggle on most bigger line
+      // need to reduce chart
+
+    }
   }
   drawCoords () {
     for (let i = 0; i < 6; i++) {
@@ -124,7 +144,6 @@ class Chart {
     ctx.clearRect(0, 0, cWidth, cHeight)
     ctx.beginPath()
     ctx.strokeStyle = color
-
     ctx.lineJoin = 'round'
     const xStart = 0
     const yStart = Math.floor(CONTAINER_HEIGHT - ((values[0]) * this.currentMultiplier))
@@ -141,14 +160,14 @@ class Chart {
     const { isVisible } = column
     column.isVisible = !isVisible
     this.changeButtonStyle(name)
-    this.drawChart()
+    this.redrawChartWithAnimation(name)
   }
   changeButtonStyle (name) {
     const { button, color, isVisible } = this.columns.find(column => column.name === name)
     const mark = button.querySelector('mark')
-    mark.style.backgroundColor = !isVisible ? '#fff' : color
-    mark.style.width = !isVisible ? '21px' : '25px'
-    mark.style.height = !isVisible ? '21px' : '25px'
+    mark.style.backgroundColor = isVisible ? color : COLOR_WHITE
+    mark.style.width = isVisible ? BUTTON_UNABLED_SIZE : BUTTON_DISABLE_SIZE
+    mark.style.height = isVisible ? BUTTON_UNABLED_SIZE : BUTTON_DISABLE_SIZE
     mark.style.border = !isVisible ? `2px solid ${color}` : 'none'
   }
 }

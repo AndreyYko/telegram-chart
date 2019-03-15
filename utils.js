@@ -2,6 +2,9 @@ const DATA = '[{"columns":[["x",1542412800000,1542499200000,1542585600000,154267
 const CONTAINER_HEIGHT = 360
 const LINE_WIDTH = 3
 const COLOR_GREY = '#cccccc'
+const COLOR_WHITE = '#fff'
+const BUTTON_UNABLED_SIZE = '25px'
+const BUTTON_DISABLE_SIZE = '21px'
 
 const cWidth = window.innerWidth * 0.9
 const cHeight = CONTAINER_HEIGHT + 20 // for bottom labels
