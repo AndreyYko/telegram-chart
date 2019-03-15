@@ -96,7 +96,7 @@ class Chart {
     this.columns
       .filter(column => column.isVisible)
       .forEach(column => {
-        this.drawChartLine(column)
+        drawChartLine(column, this.currentMultiplier)
       })
   }
   redrawChartWithAnimation (toggledColumnName) {
@@ -105,18 +105,42 @@ class Chart {
         .filter(column => column.isVisible)
         .map(column => column.max)
     )
-    const toggledColumn = this.columns.find(column => column.name === toggledColumnName)
-    const prevPeriod = this.currentPeriod
+    const prevMultiplier = this.currentMultiplier
     this.currentPeriod = getPeriod(maxValue)
     this.currentMultiplier = getMultiplier(this.currentPeriod)
-    if (prevPeriod > this.currentPeriod) {
-      // this mean that user toggle off most bigger line
-      // need to increase chart
-    } else if (prevPeriod < this.currentPeriod) {
-      // this mean that user toggle on most bigger line
-      // need to reduce chart
-
+    this.columns
+      .map(column => {
+        const isChangeAlpha = column.name === toggledColumnName
+        this.chartColumnAnimation(prevMultiplier, column, isChangeAlpha)
+      })
+  }
+  chartColumnAnimation (prevMultiplier, column, isChangeAlpha = false) {
+    const framesCount = 10
+    const { currentMultiplier } = this
+    const { isVisible } = column
+    const isUp = prevMultiplier < currentMultiplier
+    const diff = isUp ? currentMultiplier - prevMultiplier : prevMultiplier - currentMultiplier
+    let step = 0
+    function animate () {
+      const req = requestAnimationFrame(animate)
+      let multiplier = prevMultiplier
+      let alpha = isChangeAlpha ? isVisible ? 0 : 100 : null
+      if (step < framesCount) {
+        const point = (diff / framesCount) * step
+        multiplier = isUp ? prevMultiplier + point : prevMultiplier - point
+        if (isChangeAlpha) alpha = isVisible ? alpha + (10 * step) : alpha - (10 * step)
+      } else {
+        multiplier = currentMultiplier
+        if (isChangeAlpha) alpha = isVisible ? 100 : 0
+      }
+      // if (isChangeAlpha) console.log(alpha)
+      drawChartLine(column, multiplier, isChangeAlpha ? alpha / 100 : isVisible ? 1 : 0)
+      step++
+      if (step > framesCount) {
+        cancelAnimationFrame(req)
+      }
     }
+    animate()
   }
   drawCoords () {
     for (let i = 0; i < 6; i++) {
@@ -139,22 +163,6 @@ class Chart {
       xl.fillText(xLabels[i], x, CONTAINER_HEIGHT + 20)
     }
   }
-  drawChartLine (column) {
-    const { ctx, color, values } = column
-    ctx.clearRect(0, 0, cWidth, cHeight)
-    ctx.beginPath()
-    ctx.strokeStyle = color
-    ctx.lineJoin = 'round'
-    const xStart = 0
-    const yStart = Math.floor(CONTAINER_HEIGHT - ((values[0]) * this.currentMultiplier))
-    ctx.moveTo(xStart, yStart)
-    for (let i = 1; i < values.length; i++) {
-      const xNext = Math.floor((cWidth / values.length) * i)
-      const yNext = Math.floor(CONTAINER_HEIGHT - ((values[i]) * this.currentMultiplier))
-      ctx.lineTo(xNext, yNext)
-    }
-    ctx.stroke()
-  }
   toggleChartLine (name) {
     const column = this.columns.find(column => column.name === name)
     const { isVisible } = column
@@ -175,7 +183,7 @@ class Chart {
 function init () {
   const parsedData = JSON.parse(DATA)
   const [firstChart, secondChart, thirdChart, fourthChart, fifthChart] = parsedData
-  const chart =  new Chart('first-chart', firstChart)
+  const chart =  new Chart('first-chart', fifthChart)
   chart.init()
 }
 

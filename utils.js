@@ -22,6 +22,25 @@ const drawLine = (ctx, x1, y1, x2, y2, width = 1) => {
   ctx.stroke()
 }
 
+const drawChartLine = (column, multiplier, alpha = 1) => {
+  console.log(column.name, alpha)
+  const { ctx, color, values } = column
+  ctx.clearRect(0, 0, cWidth, cHeight)
+  ctx.beginPath()
+  ctx.strokeStyle = color
+  ctx.lineJoin = 'round'
+  ctx.globalAlpha = alpha
+  const xStart = 0
+  const yStart = Math.floor(CONTAINER_HEIGHT - ((values[0]) * multiplier))
+  ctx.moveTo(xStart, yStart)
+  for (let i = 1; i < values.length; i++) {
+    const xNext = Math.floor((cWidth / values.length) * i)
+    const yNext = Math.floor(CONTAINER_HEIGHT - ((values[i]) * multiplier))
+    ctx.lineTo(xNext, yNext)
+  }
+  ctx.stroke()
+}
+
 const getXLabels = (xData) => {
   const interval = Math.floor(xData.length / 6)
   let res = []
