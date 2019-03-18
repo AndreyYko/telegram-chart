@@ -23,7 +23,6 @@ const drawLine = (ctx, x1, y1, x2, y2, width = 1) => {
 }
 
 const drawChartLine = (column, multiplier, alpha = 1) => {
-  console.log(column.name, alpha)
   const { ctx, color, values } = column
   ctx.clearRect(0, 0, cWidth, cHeight)
   ctx.beginPath()
@@ -79,4 +78,41 @@ const getXLabels = (xData) => {
   return res
     .map(item => new Date(item).toUTCString().slice(5, 11))
     .map(item => item.split(' ').reverse().join(' '))
+}
+
+const createCanvasContext = (type, chartName, canvasName) => {
+  const canvas = document.createElement('canvas')
+  canvas.setAttribute('width', cWidth)
+  canvas.setAttribute('height', cHeight)
+  canvas.setAttribute('id', `${chartName}__${canvasName}`)
+  document.querySelector('.canvases').appendChild(canvas)
+  const context = canvas.getContext('2d')
+  if (type === 'BG') {
+    context.font = '12px Arial'
+    context.fillStyle = COLOR_GREY
+  } else if (type === 'COLUMN') {
+    context.lineWidth = LINE_WIDTH
+  }
+  return context
+}
+
+const createColumnButton = (chartName, color, title, name) => {
+  const button = document.createElement('button')
+  const mark = document.createElement('mark')
+  const span = document.createElement('span')
+  button.setAttribute('id', `${chartName}__button-${name}`)
+  mark.style.backgroundColor = color
+  span.innerText = title
+  button.appendChild(mark)
+  button.appendChild(span)
+  document.querySelector('.buttons').appendChild(button)
+  return button
+}
+
+const changeButtonStyle = (button, color, isVisible) => {
+  const mark = button.querySelector('mark')
+  mark.style.backgroundColor = isVisible ? color : COLOR_WHITE
+  mark.style.width = isVisible ? BUTTON_UNABLED_SIZE : BUTTON_DISABLE_SIZE
+  mark.style.height = isVisible ? BUTTON_UNABLED_SIZE : BUTTON_DISABLE_SIZE
+  mark.style.border = !isVisible ? `2px solid ${color}` : 'none'
 }
