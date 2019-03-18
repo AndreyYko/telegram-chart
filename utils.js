@@ -41,6 +41,31 @@ const drawChartLine = (column, multiplier, alpha = 1) => {
   ctx.stroke()
 }
 
+const drawCoords = (ctx) => {
+  for (let i = 0; i < 6; i++) {
+    const y = CONTAINER_HEIGHT - (60 * i)
+    drawLine(ctx, 0, y, cWidth, y)
+  }
+}
+
+const writeXLabels = (ctx, values) => {
+  ctx.clearRect(0, 0, cWidth, cHeight)
+  const xLabels = getXLabels(values)
+  for (let i = 0; i < 6; i++) {
+    let x = (cWidth / 5) * i
+    if (i === 5) x -= 45 // for last bottom label overflowing
+    ctx.fillText(xLabels[i], x, CONTAINER_HEIGHT + 20)
+  }
+}
+
+const writeYLabels = (ctx, period) => {
+  ctx.clearRect(0, 0, cWidth, cHeight)
+  for (let i = 0; i < 6; i++) {
+    const y = (CONTAINER_HEIGHT - (60 * i)) - 5 // -5 for label visibility
+    ctx.fillText(`${Math.floor(i * period)}`, 0, y)
+  }
+}
+
 const getXLabels = (xData) => {
   const interval = Math.floor(xData.length / 6)
   let res = []

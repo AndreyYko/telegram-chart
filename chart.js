@@ -6,9 +6,12 @@ class Chart {
     yl: null
   }
   columns = []
+  visibleColumns = []
   xValues = null
   currentMultiplier = null
   currentPeriod = null
+
+  currentColumn = null
 
   constructor (name, data) {
     this.chartName = name
@@ -16,8 +19,8 @@ class Chart {
   }
   init () {
     this.createBackgroundContexts()
-    this.createLinesContexts()
-    this.createButtons()
+    this.createColumnsContextsAndButtons()
+
     this.drawChart()
     console.log(this)
   }
@@ -34,33 +37,35 @@ class Chart {
       this.contexts[ctx] = context
     })
   }
-  createLinesContexts () {
+  createColumnsContextsAndButtons () {
     this.columns.forEach(column => {
-      const canvas = document.createElement('canvas')
-      canvas.setAttribute('width', cWidth)
-      canvas.setAttribute('height', cHeight)
-      canvas.setAttribute('id', `${this.chartName}__line-${column.name}`)
-      document.querySelector('.canvases').appendChild(canvas)
-      const context = canvas.getContext('2d')
-      context.lineWidth = LINE_WIDTH
-      column.ctx = context
+      this.createColumnContext(column)
+      this.createColumnButton(column)
     })
   }
-  createButtons () {
-    this.columns.forEach(column => {
-      const { color, title, name } = column
-      const button = document.createElement('button')
-      const mark = document.createElement('mark')
-      const span = document.createElement('span')
-      button.setAttribute('id', `${this.chartName}__button-${name}`)
-      mark.style.backgroundColor = color
-      span.innerText = title
-      button.appendChild(mark)
-      button.appendChild(span)
-      button.addEventListener('click', this.toggleChartLine.bind(this, name))
-      document.querySelector('.buttons').appendChild(button)
-      column.button = button
-    })
+  createColumnContext (column) {
+    const canvas = document.createElement('canvas')
+    canvas.setAttribute('width', cWidth)
+    canvas.setAttribute('height', cHeight)
+    canvas.setAttribute('id', `${this.chartName}__line-${column.name}`)
+    document.querySelector('.canvases').appendChild(canvas)
+    const context = canvas.getContext('2d')
+    context.lineWidth = LINE_WIDTH
+    column.ctx = context
+  }
+  createColumnButton (column) {
+    const { color, title, name } = column
+    const button = document.createElement('button')
+    const mark = document.createElement('mark')
+    const span = document.createElement('span')
+    button.setAttribute('id', `${this.chartName}__button-${name}`)
+    mark.style.backgroundColor = color
+    span.innerText = title
+    button.appendChild(mark)
+    button.appendChild(span)
+    button.addEventListener('click', this.toggleChartLine.bind(this, name))
+    document.querySelector('.buttons').appendChild(button)
+    column.button = button
   }
   calculateChartData (data) {
     const { columns, colors, names, types } = data
@@ -84,20 +89,15 @@ class Chart {
     })
   }
   drawChart () {
-    const maxValue = Math.max(
-      ...this.columns
-        .filter(column => column.isVisible)
-        .map(column => column.max)
-    )
+    const { columns, contexts, xValues } = this
+    const { bg, xl, yl } = contexts
+    const maxValue = Math.max(...columns.map(column => column.isVisible && column.max))
     this.currentPeriod = getPeriod(maxValue)
     this.currentMultiplier = getMultiplier(this.currentPeriod)
-    this.drawCoords()
-    this.writeCoordsText()
-    this.columns
-      .filter(column => column.isVisible)
-      .forEach(column => {
-        drawChartLine(column, this.currentMultiplier)
-      })
+    drawCoords(bg)
+    writeXLabels(xl, xValues)
+    writeYLabels(yl, this.currentPeriod)
+    columns.forEach(column => drawChartLine(column, this.currentMultiplier))
   }
   redrawChartWithAnimation (toggledColumnName) {
     const maxValue = Math.max(
@@ -108,11 +108,15 @@ class Chart {
     const prevMultiplier = this.currentMultiplier
     this.currentPeriod = getPeriod(maxValue)
     this.currentMultiplier = getMultiplier(this.currentPeriod)
-    this.columns
-      .map(column => {
-        const isChangeAlpha = column.name === toggledColumnName
-        this.chartColumnAnimation(prevMultiplier, column, isChangeAlpha)
-      })
+    if (prevMultiplier === this.currentMultiplier) {
+      this.chartColumnAnimation(this.currentMultiplier, this.columns.find(column => column.name === toggledColumnName), true)
+    } else {
+      this.columns
+        .map(column => {
+          const isChangeAlpha = column.name === toggledColumnName
+          this.chartColumnAnimation(prevMultiplier, column, isChangeAlpha)
+        })
+    }
   }
   chartColumnAnimation (prevMultiplier, column, isChangeAlpha = false) {
     const framesCount = 10
@@ -142,27 +146,6 @@ class Chart {
     }
     animate()
   }
-  drawCoords () {
-    for (let i = 0; i < 6; i++) {
-      const y = CONTAINER_HEIGHT - (60 * i)
-      drawLine(this.contexts.bg, 0, y, cWidth, y)
-    }
-  }
-  writeCoordsText () {
-    const { xl, yl } = this.contexts
-    xl.clearRect(0, 0, cWidth, cHeight)
-    yl.clearRect(0, 0, cWidth, cHeight)
-    const xLabels = getXLabels(this.xValues)
-    for (let i = 0; i < 6; i++) {
-      const y = (CONTAINER_HEIGHT - (60 * i)) - 5 // -5 for label visibility
-      yl.fillText(`${Math.floor(i * this.currentPeriod)}`, 0, y)
-    }
-    for (let i = 0; i < 6; i++) {
-      let x = (cWidth / 5) * i
-      if (i === 5) x -= 45 // for last bottom label overflowing
-      xl.fillText(xLabels[i], x, CONTAINER_HEIGHT + 20)
-    }
-  }
   toggleChartLine (name) {
     const column = this.columns.find(column => column.name === name)
     const { isVisible } = column
@@ -183,7 +166,7 @@ class Chart {
 function init () {
   const parsedData = JSON.parse(DATA)
   const [firstChart, secondChart, thirdChart, fourthChart, fifthChart] = parsedData
-  const chart =  new Chart('first-chart', fifthChart)
+  const chart =  new Chart('first-chart', firstChart)
   chart.init()
 }
 
