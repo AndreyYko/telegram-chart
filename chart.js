@@ -3,7 +3,8 @@ class Chart {
   contexts = {
     bg: null,
     xl: null,
-    yl: null
+    yl: null,
+    ynl: null
   }
   columns = []
   xValues = null
@@ -76,22 +77,53 @@ class Chart {
     columns.forEach(column => drawChartLine(column, this.currentMultiplier))
   }
   redrawChartWithAnimation () {
-    const { columns, contexts: { yl } } = this
+    const { columns } = this
     const maxValue = Math.max(...columns.map(column => column.isVisible && column.max))
     const prevMultiplier = this.currentMultiplier
     if (maxValue) {
       this.currentPeriod = getPeriod(maxValue)
       this.currentMultiplier = getMultiplier(this.currentPeriod)
-      writeYLabels(yl, this.currentPeriod)
     }
     if (prevMultiplier === this.currentMultiplier) {
       this.chartColumnAnimation(this.currentMultiplier, this.currentColumn, true)
     } else {
+      this.chartCoordsAnimation(prevMultiplier)
+      this.chartYLabelAnimation(prevMultiplier)
       columns.map(column => {
           const isChangeAlpha = column.name === this.currentColumn.name
           this.chartColumnAnimation(prevMultiplier, column, isChangeAlpha)
         })
     }
+  }
+  chartCoordsAnimation (prevMultiplier) {
+    const { contexts: { bg }, currentMultiplier } = this
+    const isUp = prevMultiplier < currentMultiplier
+    const frameCount = BG_ANIMATION_FRAMES
+    let step = 0
+    let alpha = 0
+    function animate () {
+      const req = requestAnimationFrame(animate)
+      drawAnimatedCoords(bg, isUp, step, alpha / 10)
+      step += BG_ANIMATION_FRAMES / 10
+      alpha++
+      if (step > frameCount) cancelAnimationFrame(req)
+    }
+    animate()
+  }
+  chartYLabelAnimation (prevMultiplier) {
+    const { contexts: { yl, ynl }, currentMultiplier, currentPeriod } = this
+    const isUp = prevMultiplier < currentMultiplier
+    const frameCount = BG_ANIMATION_FRAMES
+    let step = 0
+    let alpha = 0
+    function animate () {
+      const req = requestAnimationFrame(animate)
+      writeAnimatedYLabels(yl, ynl, currentPeriod, isUp, step, alpha / 10)
+      step += BG_ANIMATION_FRAMES / 10
+      alpha++
+      if (step > frameCount) cancelAnimationFrame(req)
+    }
+    animate()
   }
   chartColumnAnimation (prevMultiplier, column, isChangeAlpha = false) {
     const framesCount = 10
@@ -114,9 +146,7 @@ class Chart {
       }
       drawChartLine(column, multiplier, isChangeAlpha ? alpha / 100 : isVisible ? 1 : 0)
       step++
-      if (step > framesCount) {
-        cancelAnimationFrame(req)
-      }
+      if (step > framesCount) cancelAnimationFrame(req)
     }
     animate()
   }
@@ -128,13 +158,3 @@ class Chart {
     this.redrawChartWithAnimation()
   }
 }
-
-function init () {
-  const parsedData = JSON.parse(DATA)
-  const [firstChart, secondChart, thirdChart, fourthChart, fifthChart] = parsedData
-  const chart =  new Chart('first-chart', fifthChart)
-  chart.init()
-}
-
-
-init()
