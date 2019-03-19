@@ -43,9 +43,10 @@ const drawChartLine = (column, multiplier, alpha = 1) => {
   ctx.stroke()
 }
 
-const drawCoords = (ctx) => {
+const drawCoords = (ctx, yfl) => {
   ctx.clearRect(0, 0, cWidth, cHeight)
-  for (let i = 0; i < 6; i++) {
+  drawLine(yfl, 0, CONTAINER_HEIGHT, cWidth, CONTAINER_HEIGHT)
+  for (let i = 1; i < 6; i++) {
     const y = CONTAINER_HEIGHT - (60 * i)
     drawLine(ctx, 0, y, cWidth, y)
   }
@@ -73,9 +74,10 @@ const writeXLabels = (ctx, values) => {
   }
 }
 
-const writeYLabels = (ctx, period) => {
+const writeYLabels = (ctx, yfl, period) => {
   ctx.clearRect(0, 0, cWidth, cHeight)
-  for (let i = 0; i < 6; i++) {
+  yfl.fillText('0', 0, CONTAINER_HEIGHT - 5)
+  for (let i = 1; i < 6; i++) {
     const y = (CONTAINER_HEIGHT - (60 * i)) - 5 // -5 for label visibility
     ctx.fillText(`${Math.floor(i * period)}`, 0, y)
   }
@@ -86,7 +88,7 @@ const writeAnimatedYLabels = (ctxP, ctxN, period, isUp, point = 0, alphaDiff = 0
   ctxN.clearRect(0, 0, cWidth, cHeight)
   ctxP.fillStyle = `rgba(168, 168, 168, ${1 - alphaDiff})`
   ctxN.fillStyle = `rgba(168, 168, 168, ${alphaDiff})`
-  for (let i = 0; i < 6; i++) {
+  for (let i = 1; i < 6; i++) {
     let y = (CONTAINER_HEIGHT - (60 * i)) - 5 // -5 for label visibility
     y = isUp ? y - point : y + point
     const yNext = isUp ? y + BG_ANIMATION_FRAMES : y - BG_ANIMATION_FRAMES

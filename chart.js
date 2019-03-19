@@ -1,10 +1,11 @@
 class Chart {
   chartName = null
   contexts = {
-    bg: null,
-    xl: null,
-    yl: null,
-    ynl: null
+    bg: null, // background
+    xl: null, // x labels
+    yl: null, // y labels
+    ynl: null, // y next labels (animation)
+    yfl: null // y first label (static)
   }
   columns = []
   xValues = null
@@ -67,13 +68,13 @@ class Chart {
   }
   drawChart () {
     const { columns, contexts, xValues } = this
-    const { bg, xl, yl } = contexts
+    const { bg, xl, yl, yfl } = contexts
     const maxValue = Math.max(...columns.map(column => column.isVisible && column.max))
     this.currentPeriod = getPeriod(maxValue)
     this.currentMultiplier = getMultiplier(this.currentPeriod)
-    drawCoords(bg)
+    drawCoords(bg, yfl)
     writeXLabels(xl, xValues)
-    writeYLabels(yl, this.currentPeriod)
+    writeYLabels(yl, yfl, this.currentPeriod)
     columns.forEach(column => drawChartLine(column, this.currentMultiplier))
   }
   redrawChartWithAnimation () {
