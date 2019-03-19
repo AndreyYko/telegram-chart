@@ -9,7 +9,17 @@ class Chart {
   }
   columns = []
   xValues = null
+
+  control = {
+    wrapper: null,
+    left: null,
+    right: null,
+    width: 20, // %
+    rightPos: 0
+  }
+
   currentMultiplier = null
+  currentTimelineMultiplier = null
   currentPeriod = null
 
   currentColumn = null
@@ -21,7 +31,7 @@ class Chart {
   init () {
     this.createBackgroundContexts()
     this.createColumnsContextsAndButtons()
-
+    this.createControl()
     this.drawChart()
     console.log(this)
   }
@@ -37,13 +47,20 @@ class Chart {
     })
   }
   createColumnContext (column) {
-    column.ctx = createCanvasContext('COLUMN', this.chartName, column.name)
+    const { chartName } = this
+    column.ctx = createCanvasContext('COLUMN', chartName, column.name)
+    column.timeline = createTimeline(chartName, column.name)
   }
   createColumnButton (column) {
     const { color, title, name } = column
     const button = createColumnButton(this.chartName, color, title, name)
     button.addEventListener('click', this.toggleChartLine.bind(this, name))
     column.button = button
+  }
+  createControl () {
+    const { chartName, control }  = this
+    const { wrapper, controlLeft, controlRight } = createControl(chartName, control.width, control.rightPos)
+    this.control = { ...control, wrapper, controlLeft, controlRight }
   }
   calculateChartData (data) {
     const { columns, colors, names, types } = data
@@ -72,27 +89,35 @@ class Chart {
     const maxValue = Math.max(...columns.map(column => column.isVisible && column.max))
     this.currentPeriod = getPeriod(maxValue)
     this.currentMultiplier = getMultiplier(this.currentPeriod)
+    this.currentTimelineMultiplier = getTimelineMultiplier(this.currentPeriod)
     drawCoords(bg, yfl)
     writeXLabels(xl, xValues)
     writeYLabels(yl, yfl, this.currentPeriod)
-    columns.forEach(column => drawChartLine(column, this.currentMultiplier))
+    columns.forEach(column => {
+      drawChartLine(column, this.currentMultiplier)
+      drawTimelineChartLine(column, this.currentTimelineMultiplier)
+    })
   }
   redrawChartWithAnimation () {
     const { columns } = this
     const maxValue = Math.max(...columns.map(column => column.isVisible && column.max))
     const prevMultiplier = this.currentMultiplier
+    const prevTimelineMultiplier = this.currentTimelineMultiplier
     if (maxValue) {
       this.currentPeriod = getPeriod(maxValue)
       this.currentMultiplier = getMultiplier(this.currentPeriod)
+      this.currentTimelineMultiplier = getTimelineMultiplier(this.currentPeriod)
     }
     if (prevMultiplier === this.currentMultiplier) {
       this.chartColumnAnimation(this.currentMultiplier, this.currentColumn, true)
+      this.chartTimelineColumnAnimation(this.currentTimelineMultiplier, this.currentColumn, true)
     } else {
       this.chartCoordsAnimation(prevMultiplier)
       this.chartYLabelAnimation(prevMultiplier)
       columns.map(column => {
           const isChangeAlpha = column.name === this.currentColumn.name
           this.chartColumnAnimation(prevMultiplier, column, isChangeAlpha)
+          this.chartTimelineColumnAnimation(prevTimelineMultiplier, column, isChangeAlpha)
         })
     }
   }
@@ -146,6 +171,31 @@ class Chart {
         if (isChangeAlpha) alpha = isVisible ? 100 : 0
       }
       drawChartLine(column, multiplier, isChangeAlpha ? alpha / 100 : isVisible ? 1 : 0)
+      step++
+      if (step > framesCount) cancelAnimationFrame(req)
+    }
+    animate()
+  }
+  chartTimelineColumnAnimation (prevMultiplier, column, isChangeAlpha = false) {
+    const framesCount = 10
+    const { currentTimelineMultiplier } = this
+    const { isVisible } = column
+    const isUp = prevMultiplier < currentTimelineMultiplier
+    const diff = isUp ? currentTimelineMultiplier - prevMultiplier : prevMultiplier - currentTimelineMultiplier
+    let step = 0
+    function animate () {
+      const req = requestAnimationFrame(animate)
+      let multiplier = prevMultiplier
+      let alpha = isChangeAlpha ? isVisible ? 0 : 100 : null
+      if (step < framesCount) {
+        const point = (diff / framesCount) * step
+        multiplier = isUp ? prevMultiplier + point : prevMultiplier - point
+        if (isChangeAlpha) alpha = isVisible ? alpha + (10 * step) : alpha - (10 * step)
+      } else {
+        multiplier = currentTimelineMultiplier
+        if (isChangeAlpha) alpha = isVisible ? 100 : 0
+      }
+      drawTimelineChartLine(column, multiplier, isChangeAlpha ? alpha / 100 : isVisible ? 1 : 0)
       step++
       if (step > framesCount) cancelAnimationFrame(req)
     }
