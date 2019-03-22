@@ -8,6 +8,8 @@ function _iterableToArray(iter) { if (Symbol.iterator in Object(iter) || Object.
 
 function _arrayWithoutHoles(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = new Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } }
 
+function _objectSpread(target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i] != null ? arguments[i] : {}; var ownKeys = Object.keys(source); if (typeof Object.getOwnPropertySymbols === 'function') { ownKeys = ownKeys.concat(Object.getOwnPropertySymbols(source).filter(function (sym) { return Object.getOwnPropertyDescriptor(source, sym).enumerable; })); } ownKeys.forEach(function (key) { _defineProperty(target, key, source[key]); }); } return target; }
+
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
@@ -41,16 +43,30 @@ function () {
 
     _defineProperty(this, "xValues", null);
 
+    _defineProperty(this, "control", {
+      wrapper: null,
+      left: null,
+      right: null,
+      width: 100,
+      // px
+      rightPos: 0,
+      clickedLayerX: null,
+      isActive: false
+    });
+
     _defineProperty(this, "currentMultiplier", null);
 
     _defineProperty(this, "currentTimelineMultiplier", null);
 
     _defineProperty(this, "currentPeriod", null);
 
+    _defineProperty(this, "currentTimelinePeriod", null);
+
     _defineProperty(this, "currentColumn", null);
 
     this.chartName = name;
     this.calculateChartData(data);
+    this.controlMoveHandler = this.controlMoveHandler.bind(this);
   }
 
   _createClass(Chart, [{
@@ -58,7 +74,9 @@ function () {
     value: function init() {
       this.createBackgroundContexts();
       this.createColumnsContextsAndButtons();
+      this.createControl();
       this.drawChart();
+      this.drawTimeline();
       console.log(this);
     }
   }, {
@@ -109,6 +127,35 @@ function () {
       column.button = button;
     })
   }, {
+    key: "createControl",
+    value: function (_createControl) {
+      function createControl() {
+        return _createControl.apply(this, arguments);
+      }
+
+      createControl.toString = function () {
+        return _createControl.toString();
+      };
+
+      return createControl;
+    }(function () {
+      var chartName = this.chartName,
+          control = this.control;
+
+      var _createControl2 = createControl(chartName, control.width, control.rightPos),
+          wrapper = _createControl2.wrapper,
+          controlLeft = _createControl2.controlLeft,
+          controlRight = _createControl2.controlRight;
+
+      wrapper.addEventListener('mousedown', this.controlMouseDownHandler.bind(this));
+      window.addEventListener('mouseup', this.controlMouseUpHandler.bind(this));
+      this.control = _objectSpread({}, control, {
+        wrapper: wrapper,
+        controlLeft: controlLeft,
+        controlRight: controlRight
+      });
+    })
+  }, {
     key: "calculateChartData",
     value: function calculateChartData(data) {
       var _this3 = this;
@@ -128,8 +175,10 @@ function () {
             name: label,
             title: names[label],
             values: column,
+            currentValues: [],
             color: colors[label],
             max: Math.max.apply(Math, _toConsumableArray(column)),
+            currentValuesMax: 0,
             isVisible: true,
             button: null,
             ctx: null
@@ -144,50 +193,86 @@ function () {
 
       var columns = this.columns,
           contexts = this.contexts,
-          xValues = this.xValues;
+          xValues = this.xValues,
+          _this$control = this.control,
+          width = _this$control.width,
+          rightPos = _this$control.rightPos;
       var bg = contexts.bg,
           xl = contexts.xl,
           yl = contexts.yl,
           yfl = contexts.yfl;
+      columns.forEach(function (column) {
+        column.currentValues = calculateCurrentValues(column.values, width, rightPos);
+        column.currentValuesMax = Math.max.apply(Math, _toConsumableArray(column.currentValues));
+      });
       var maxValue = Math.max.apply(Math, _toConsumableArray(columns.map(function (column) {
-        return column.isVisible && column.max;
+        return column.isVisible && column.currentValuesMax;
       })));
       this.currentPeriod = getPeriod(maxValue);
       this.currentMultiplier = getMultiplier(this.currentPeriod);
-      this.currentTimelineMultiplier = getTimelineMultiplier(this.currentPeriod);
       drawCoords(bg, yfl);
       writeXLabels(xl, xValues);
       writeYLabels(yl, yfl, this.currentPeriod);
       columns.forEach(function (column) {
         drawChartLine(column, _this4.currentMultiplier);
-        drawTimelineChartLine(column, _this4.currentTimelineMultiplier);
       });
     }
   }, {
-    key: "redrawChartWithAnimation",
-    value: function redrawChartWithAnimation() {
+    key: "drawTimeline",
+    value: function drawTimeline() {
       var _this5 = this;
 
       var columns = this.columns;
       var maxValue = Math.max.apply(Math, _toConsumableArray(columns.map(function (column) {
         return column.isVisible && column.max;
       })));
-      var prevMultiplier = this.currentMultiplier;
+      this.currentTimelinePeriod = getPeriod(maxValue);
+      this.currentTimelineMultiplier = getTimelineMultiplier(this.currentTimelinePeriod);
+      columns.forEach(function (column) {
+        drawTimelineChartLine(column, _this5.currentTimelineMultiplier);
+      });
+    }
+  }, {
+    key: "redrawChartWithAnimation",
+    value: function redrawChartWithAnimation() {
+      var _this6 = this;
 
-      if (maxValue) {
-        this.currentPeriod = getPeriod(maxValue);
+      var columns = this.columns,
+          _this$control2 = this.control,
+          width = _this$control2.width,
+          rightPos = _this$control2.rightPos;
+      columns.forEach(function (column) {
+        column.currentValues = calculateCurrentValues(column.values, width, rightPos);
+        column.currentValuesMax = Math.max.apply(Math, _toConsumableArray(column.currentValues));
+      });
+      var maxCurrentValue = Math.max.apply(Math, _toConsumableArray(columns.map(function (column) {
+        return column.isVisible && column.currentValuesMax;
+      })));
+      var maxValue = Math.max.apply(Math, _toConsumableArray(columns.map(function (column) {
+        return column.isVisible && column.max;
+      })));
+      var prevMultiplier = this.currentMultiplier;
+      var prevTimelineMultiplier = this.currentTimelineMultiplier;
+
+      if (maxCurrentValue) {
+        this.currentPeriod = getPeriod(maxCurrentValue);
+        this.currentTimelinePeriod = getPeriod(maxValue);
         this.currentMultiplier = getMultiplier(this.currentPeriod);
+        this.currentTimelineMultiplier = getTimelineMultiplier(this.currentTimelinePeriod);
       }
 
       if (prevMultiplier === this.currentMultiplier) {
         this.chartColumnAnimation(this.currentMultiplier, this.currentColumn, true);
+        this.chartTimelineColumnAnimation(this.currentTimelineMultiplier, this.currentColumn, true);
       } else {
         this.chartCoordsAnimation(prevMultiplier);
         this.chartYLabelAnimation(prevMultiplier);
         columns.map(function (column) {
-          var isChangeAlpha = column.name === _this5.currentColumn.name;
+          var isChangeAlpha = column.name === _this6.currentColumn.name;
 
-          _this5.chartColumnAnimation(prevMultiplier, column, isChangeAlpha);
+          _this6.chartColumnAnimation(prevMultiplier, column, isChangeAlpha);
+
+          _this6.chartTimelineColumnAnimation(prevTimelineMultiplier, column, isChangeAlpha);
         });
       }
     }
@@ -267,6 +352,38 @@ function () {
       animate();
     }
   }, {
+    key: "chartTimelineColumnAnimation",
+    value: function chartTimelineColumnAnimation(prevMultiplier, column) {
+      var isChangeAlpha = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : false;
+      var framesCount = 10;
+      var currentTimelineMultiplier = this.currentTimelineMultiplier;
+      var isVisible = column.isVisible;
+      var isUp = prevMultiplier < currentTimelineMultiplier;
+      var diff = isUp ? currentTimelineMultiplier - prevMultiplier : prevMultiplier - currentTimelineMultiplier;
+      var step = 0;
+
+      function animate() {
+        var req = requestAnimationFrame(animate);
+        var multiplier = prevMultiplier;
+        var alpha = isChangeAlpha ? isVisible ? 0 : 100 : null;
+
+        if (step < framesCount) {
+          var point = diff / framesCount * step;
+          multiplier = isUp ? prevMultiplier + point : prevMultiplier - point;
+          if (isChangeAlpha) alpha = isVisible ? alpha + 10 * step : alpha - 10 * step;
+        } else {
+          multiplier = currentTimelineMultiplier;
+          if (isChangeAlpha) alpha = isVisible ? 100 : 0;
+        }
+
+        drawTimelineChartLine(column, multiplier, isChangeAlpha ? alpha / 100 : isVisible ? 1 : 0);
+        step++;
+        if (step > framesCount) cancelAnimationFrame(req);
+      }
+
+      animate();
+    }
+  }, {
     key: "toggleChartLine",
     value: function toggleChartLine(name) {
       this.currentColumn = this.columns.find(function (column) {
@@ -279,6 +396,44 @@ function () {
       this.currentColumn.isVisible = !isVisible;
       changeButtonStyle(button, color, this.currentColumn.isVisible);
       this.redrawChartWithAnimation();
+    }
+  }, {
+    key: "controlMouseUpHandler",
+    value: function controlMouseUpHandler() {
+      console.log(this.control.isActive);
+
+      if (this.control.isActive) {
+        this.control.isActive = false;
+        window.removeEventListener('mousemove', this.controlMoveHandler);
+      }
+    }
+  }, {
+    key: "controlMouseDownHandler",
+    value: function controlMouseDownHandler(event) {
+      this.control.clickedLayerX = event.layerX;
+      this.control.isActive = true;
+      window.addEventListener('mousemove', this.controlMoveHandler);
+    }
+  }, {
+    key: "controlMoveHandler",
+    value: function controlMoveHandler(event) {
+      var _this$control3 = this.control,
+          clickedLayerX = _this$control3.clickedLayerX,
+          controlWidth = _this$control3.width;
+      var leftPadding = (window.innerWidth - cWidth) / 2;
+      var timelineWidthWithoutControl = cWidth - controlWidth;
+      var newRightPos = Math.floor(cWidth - (event.clientX - leftPadding) - (controlWidth - clickedLayerX));
+
+      if (newRightPos >= 0 && newRightPos <= timelineWidthWithoutControl) {
+        this.control.rightPos = newRightPos;
+      } else if (newRightPos < 0) {
+        this.control.rightPos = 0;
+      } else if (newRightPos > timelineWidthWithoutControl) {
+        this.control.rightPos = timelineWidthWithoutControl;
+      }
+
+      moveControl(this.control);
+      this.drawChart();
     }
   }]);
 

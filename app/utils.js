@@ -29,7 +29,7 @@ const drawLine = (ctx, x1, y1, x2, y2, width = 1, color = COLOR_GREY_LIGHT) => {
 }
 
 const drawChartLine = (column, multiplier, alpha = 1) => {
-  const { ctx, color, values } = column
+  const { ctx, color, currentValues: values } = column
   ctx.clearRect(0, 0, cWidth, cHeight)
   ctx.beginPath()
   ctx.strokeStyle = color
@@ -39,7 +39,12 @@ const drawChartLine = (column, multiplier, alpha = 1) => {
   const yStart = Math.floor(CONTAINER_HEIGHT - ((values[0]) * multiplier))
   ctx.moveTo(xStart, yStart)
   for (let i = 1; i < values.length; i++) {
-    const xNext = Math.floor((cWidth / values.length) * i)
+    let xNext
+    if (i === values.length - 1) {
+      xNext = cWidth
+    } else {
+      xNext = Math.floor((cWidth / values.length) * i)
+    }
     const yNext = Math.floor(CONTAINER_HEIGHT - ((values[i]) * multiplier))
     ctx.lineTo(xNext, yNext)
   }
@@ -56,8 +61,13 @@ const drawTimelineChartLine = (column, multiplier, alpha = 1) => {
   const xStart = 0
   const yStart = Math.floor(TIMELINE_HEIGHT - ((values[0]) * multiplier))
   timeline.moveTo(xStart, yStart)
-  for (let i = 1; i < values.length; i++) {
-    const xNext = Math.floor((cWidth / values.length) * i)
+  for (let i = 1; i <= values.length; i++) {
+    let xNext
+    if (i === values.length - 1) {
+      xNext = cWidth
+    } else {
+      xNext = Math.floor((cWidth / values.length) * i)
+    }
     const yNext = Math.floor(TIMELINE_HEIGHT - ((values[i]) * multiplier))
     timeline.lineTo(xNext, yNext)
   }
@@ -97,6 +107,7 @@ const writeXLabels = (ctx, values) => {
 
 const writeYLabels = (ctx, yfl, period) => {
   ctx.clearRect(0, 0, cWidth, cHeight)
+  yfl.clearRect(0, 0, cWidth, cHeight)
   yfl.fillText('0', 0, CONTAINER_HEIGHT - 5)
   for (let i = 1; i < 6; i++) {
     const y = (CONTAINER_HEIGHT - (60 * i)) - 5 // -5 for label visibility
@@ -180,18 +191,32 @@ const createTimeline = (chartName, columnName) => {
   return canvas.getContext('2d')
 }
 
-const createControl = (chartName, widthP, rightPos) => {
+const createControl = (chartName, widthPx, rightPosPx) => {
   const wrapper = document.createElement('div')
   const controlLeft = document.createElement('span')
   const controlRight = document.createElement('span')
   wrapper.classList.add('timeline__control')
-  const width = cWidth * (widthP / 100)
-  wrapper.style.width = `${width}px`
-  wrapper.style.right = `${rightPos}px`
+  wrapper.style.width = `${widthPx}px`
+  wrapper.style.right = `${rightPosPx}px`
   controlLeft.classList.add('timeline__control-left')
   controlRight.classList.add('timeline__control-right')
   wrapper.appendChild(controlLeft)
   wrapper.appendChild(controlRight)
   document.querySelector('.timeline').appendChild(wrapper)
   return { wrapper, controlLeft, controlRight }
+}
+
+const calculateCurrentValues = (values, controlW, controlPos) => {
+  const width = Math.floor((controlW) / cWidth * 100)
+  const elCount = Math.floor(values.length * (width / 100))
+  const posPercent = Math.floor(controlPos / cWidth * 100)
+  const posToElCount = Math.floor(values.length * (posPercent / 100))
+  console.log(width, elCount, posPercent, posToElCount)
+  return values.slice(values.length - posToElCount - elCount, values.length - posToElCount)
+}
+
+const moveControl = (control) => {
+  const { rightPos, wrapper } = control
+  wrapper.style.right = rightPos + 'px'
+
 }

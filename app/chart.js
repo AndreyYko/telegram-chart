@@ -14,25 +14,31 @@ class Chart {
     wrapper: null,
     left: null,
     right: null,
-    width: 20, // %
-    rightPos: 0
+    width: 100, // px
+    rightPos: 0,
+    clickedLayerX: null,
+    isActive: false
   }
+
 
   currentMultiplier = null
   currentTimelineMultiplier = null
   currentPeriod = null
+  currentTimelinePeriod = null
 
   currentColumn = null
 
   constructor (name, data) {
     this.chartName = name
     this.calculateChartData(data)
+    this.controlMoveHandler = this.controlMoveHandler.bind(this)
   }
   init () {
     this.createBackgroundContexts()
     this.createColumnsContextsAndButtons()
     this.createControl()
     this.drawChart()
+    this.drawTimeline()
     console.log(this)
   }
   createBackgroundContexts () {
@@ -60,6 +66,8 @@ class Chart {
   createControl () {
     const { chartName, control }  = this
     const { wrapper, controlLeft, controlRight } = createControl(chartName, control.width, control.rightPos)
+    wrapper.addEventListener('mousedown', this.controlMouseDownHandler.bind(this))
+    window.addEventListener('mouseup', this.controlMouseUpHandler.bind(this))
     this.control = { ...control, wrapper, controlLeft, controlRight }
   }
   calculateChartData (data) {
@@ -74,8 +82,10 @@ class Chart {
           name: label,
           title: names[label],
           values: column,
+          currentValues: [],
           color: colors[label],
           max: Math.max(...column),
+          currentValuesMax: 0,
           isVisible: true,
           button: null,
           ctx: null
@@ -84,29 +94,46 @@ class Chart {
     })
   }
   drawChart () {
-    const { columns, contexts, xValues } = this
+    const { columns, contexts, xValues, control: { width, rightPos } } = this
     const { bg, xl, yl, yfl } = contexts
-    const maxValue = Math.max(...columns.map(column => column.isVisible && column.max))
+    columns.forEach(column => {
+      column.currentValues = calculateCurrentValues(column.values, width, rightPos)
+      column.currentValuesMax = Math.max(...column.currentValues)
+    })
+    const maxValue = Math.max(...columns.map(column => column.isVisible && column.currentValuesMax))
     this.currentPeriod = getPeriod(maxValue)
     this.currentMultiplier = getMultiplier(this.currentPeriod)
-    this.currentTimelineMultiplier = getTimelineMultiplier(this.currentPeriod)
     drawCoords(bg, yfl)
     writeXLabels(xl, xValues)
     writeYLabels(yl, yfl, this.currentPeriod)
     columns.forEach(column => {
       drawChartLine(column, this.currentMultiplier)
+    })
+  }
+  drawTimeline () {
+    const { columns } = this
+    const maxValue = Math.max(...columns.map(column => column.isVisible && column.max))
+    this.currentTimelinePeriod = getPeriod(maxValue)
+    this.currentTimelineMultiplier = getTimelineMultiplier(this.currentTimelinePeriod)
+    columns.forEach(column => {
       drawTimelineChartLine(column, this.currentTimelineMultiplier)
     })
   }
   redrawChartWithAnimation () {
-    const { columns } = this
+    const { columns, control: { width, rightPos } } = this
+    columns.forEach(column => {
+      column.currentValues = calculateCurrentValues(column.values, width, rightPos)
+      column.currentValuesMax = Math.max(...column.currentValues)
+    })
+    const maxCurrentValue = Math.max(...columns.map(column => column.isVisible && column.currentValuesMax))
     const maxValue = Math.max(...columns.map(column => column.isVisible && column.max))
     const prevMultiplier = this.currentMultiplier
     const prevTimelineMultiplier = this.currentTimelineMultiplier
-    if (maxValue) {
-      this.currentPeriod = getPeriod(maxValue)
+    if (maxCurrentValue) {
+      this.currentPeriod = getPeriod(maxCurrentValue)
+      this.currentTimelinePeriod = getPeriod(maxValue)
       this.currentMultiplier = getMultiplier(this.currentPeriod)
-      this.currentTimelineMultiplier = getTimelineMultiplier(this.currentPeriod)
+      this.currentTimelineMultiplier = getTimelineMultiplier(this.currentTimelinePeriod)
     }
     if (prevMultiplier === this.currentMultiplier) {
       this.chartColumnAnimation(this.currentMultiplier, this.currentColumn, true)
@@ -207,5 +234,32 @@ class Chart {
     this.currentColumn.isVisible = !isVisible
     changeButtonStyle(button, color, this.currentColumn.isVisible)
     this.redrawChartWithAnimation()
+  }
+  controlMouseUpHandler () {
+    console.log(this.control.isActive)
+    if (this.control.isActive) {
+      this.control.isActive = false
+      window.removeEventListener('mousemove', this.controlMoveHandler)
+    }
+  }
+  controlMouseDownHandler (event) {
+    this.control.clickedLayerX = event.layerX
+    this.control.isActive = true
+    window.addEventListener('mousemove', this.controlMoveHandler)
+  }
+  controlMoveHandler (event) {
+    const { clickedLayerX, width: controlWidth } = this.control
+    const leftPadding = (window.innerWidth - cWidth) / 2
+    const timelineWidthWithoutControl = cWidth - controlWidth
+    const newRightPos = Math.floor((cWidth - (event.clientX - leftPadding)) - (controlWidth - clickedLayerX))
+    if (newRightPos >= 0 && newRightPos <= timelineWidthWithoutControl) {
+      this.control.rightPos = newRightPos
+    } else if (newRightPos < 0) {
+      this.control.rightPos = 0
+    } else if (newRightPos > timelineWidthWithoutControl) {
+      this.control.rightPos = timelineWidthWithoutControl
+    }
+    moveControl(this.control)
+    this.drawChart()
   }
 }
