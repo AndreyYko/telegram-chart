@@ -51,6 +51,9 @@ function () {
       // px
       rightPos: 0,
       clickedLayerX: null,
+      clickedWidth: null,
+      clickedClientX: null,
+      clickedRightPos: null,
       isActive: false
     });
 
@@ -67,6 +70,8 @@ function () {
     this.chartName = name;
     this.calculateChartData(data);
     this.controlMoveHandler = this.controlMoveHandler.bind(this);
+    this.controlLeftMoveHandler = this.controlLeftMoveHandler.bind(this);
+    this.controlRightMoveHandler = this.controlRightMoveHandler.bind(this);
   }
 
   _createClass(Chart, [{
@@ -181,6 +186,7 @@ function () {
             name: label,
             title: names[label],
             values: column,
+            moreValues: calculateBetweenValues(column),
             currentValues: [],
             color: colors[label],
             max: Math.max.apply(Math, _toConsumableArray(column)),
@@ -208,7 +214,7 @@ function () {
           yl = contexts.yl,
           yfl = contexts.yfl;
       columns.forEach(function (column) {
-        column.currentValues = calculateCurrentValues(column.values, width, rightPos);
+        column.currentValues = calculateCurrentValues(column.moreValues, width, rightPos);
         column.currentValuesMax = Math.max.apply(Math, _toConsumableArray(column.currentValues));
       });
       var maxValue = Math.max.apply(Math, _toConsumableArray(columns.map(function (column) {
@@ -228,19 +234,17 @@ function () {
     value: function redrawChartMovingControl() {
       var _this5 = this;
 
+      var isRightControl = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : false;
       var columns = this.columns,
           contexts = this.contexts,
           xValues = this.xValues,
           _this$control2 = this.control,
           width = _this$control2.width,
           rightPos = _this$control2.rightPos;
-      if (columns[0].currentValues.equals(calculateCurrentValues(columns[0].values, width, rightPos))) return;
-      var bg = contexts.bg,
-          xl = contexts.xl,
-          yl = contexts.yl,
-          yfl = contexts.yfl;
+      if (columns[0].currentValues.equals(calculateCurrentValues(columns[0].moreValues, width, rightPos, isRightControl))) return;
+      var xl = contexts.xl;
       columns.forEach(function (column) {
-        column.currentValues = calculateCurrentValues(column.values, width, rightPos);
+        column.currentValues = calculateCurrentValues(column.moreValues, width, rightPos, isRightControl);
         column.currentValuesMax = Math.max.apply(Math, _toConsumableArray(column.currentValues));
       });
       var maxValue = Math.max.apply(Math, _toConsumableArray(columns.map(function (column) {
@@ -258,7 +262,7 @@ function () {
       }
 
       columns.forEach(function (column) {
-        drawChartLine(column, _this5.currentMultiplier);
+        if (column.isVisible) drawChartLine(column, _this5.currentMultiplier);
       });
     }
   }, {
@@ -286,7 +290,7 @@ function () {
           width = _this$control3.width,
           rightPos = _this$control3.rightPos;
       columns.forEach(function (column) {
-        column.currentValues = calculateCurrentValues(column.values, width, rightPos);
+        column.currentValues = calculateCurrentValues(column.moreValues, width, rightPos);
         column.currentValuesMax = Math.max.apply(Math, _toConsumableArray(column.currentValues));
       });
       var maxCurrentValue = Math.max.apply(Math, _toConsumableArray(columns.map(function (column) {
@@ -446,25 +450,48 @@ function () {
         this.control.isActive = false;
         window.removeEventListener('mousemove', this.controlMoveHandler);
         window.removeEventListener('touchmove', this.controlMoveHandler);
+        window.removeEventListener('mousemove', this.controlLeftMoveHandler);
+        window.removeEventListener('touchmove', this.controlLeftMoveHandler);
+        window.removeEventListener('mousemove', this.controlRightMoveHandler);
+        window.removeEventListener('touchmove', this.controlRightMoveHandler);
       }
     }
   }, {
     key: "controlMouseDownHandler",
     value: function controlMouseDownHandler(event) {
-      this.control.clickedLayerX = getLayerX(event);
+      var _this$control4 = this.control,
+          controlLeft = _this$control4.controlLeft,
+          controlRight = _this$control4.controlRight,
+          width = _this$control4.width,
+          rightPos = _this$control4.rightPos;
+      var id = event.target.id;
       this.control.isActive = true;
-      window.addEventListener('mousemove', this.controlMoveHandler);
-      window.addEventListener('touchmove', this.controlMoveHandler);
+      this.control.clickedWidth = width;
+      this.control.clickedRightPos = rightPos;
+
+      if (id === controlLeft.id) {
+        this.control.clickedClientX = event.clientX || event.touches && event.touches[0].clientX;
+        window.addEventListener('mousemove', this.controlLeftMoveHandler);
+        window.addEventListener('touchmove', this.controlLeftMoveHandler);
+      } else if (id === controlRight.id) {
+        this.control.clickedClientX = event.clientX || event.touches && event.touches[0].clientX;
+        window.addEventListener('mousemove', this.controlRightMoveHandler);
+        window.addEventListener('touchmove', this.controlRightMoveHandler);
+      } else {
+        this.control.clickedLayerX = getLayerX(event);
+        window.addEventListener('mousemove', this.controlMoveHandler);
+        window.addEventListener('touchmove', this.controlMoveHandler);
+      }
     }
   }, {
     key: "controlMoveHandler",
     value: function controlMoveHandler(event) {
-      var _this$control4 = this.control,
-          clickedLayerX = _this$control4.clickedLayerX,
-          controlWidth = _this$control4.width;
+      var _this$control5 = this.control,
+          clickedLayerX = _this$control5.clickedLayerX,
+          controlWidth = _this$control5.width;
       var leftPadding = (window.innerWidth - cWidth) / 2;
       var timelineWidthWithoutControl = cWidth - controlWidth;
-      var clientX = event.clientX || event.touches[0].pageX;
+      var clientX = event.clientX || event.touches && event.touches[0].pageX;
       var newRightPos = Math.floor(cWidth - (clientX - leftPadding) - (controlWidth - clickedLayerX));
 
       if (newRightPos >= 0 && newRightPos <= timelineWidthWithoutControl) {
@@ -477,6 +504,76 @@ function () {
 
       moveControl(this.control);
       this.redrawChartMovingControl();
+    }
+  }, {
+    key: "controlLeftMoveHandler",
+    value: function controlLeftMoveHandler(event) {
+      var _this$control6 = this.control,
+          clickedClientX = _this$control6.clickedClientX,
+          clickedWidth = _this$control6.clickedWidth,
+          rightPos = _this$control6.rightPos;
+      var clientX = event.clientX || event.touches && event.touches[0].pageX;
+      if (!clientX) return;
+
+      if (clickedClientX > clientX) {
+        // increase
+        var newWidth = clickedWidth + (clickedClientX - clientX);
+
+        if (newWidth <= cWidth - rightPos) {
+          this.control.width = newWidth;
+        } else {
+          this.control.width = cWidth - rightPos;
+        }
+      } else {
+        var _newWidth = clickedWidth - (clientX - clickedClientX); // 12 = 2 borders of 6px
+
+
+        if (_newWidth - 12 >= 0) {
+          this.control.width = _newWidth;
+        } else {
+          this.control.width = 12;
+        }
+      }
+
+      moveControl(this.control);
+      this.redrawChartMovingControl();
+    }
+  }, {
+    key: "controlRightMoveHandler",
+    value: function controlRightMoveHandler(event) {
+      var _this$control7 = this.control,
+          clickedClientX = _this$control7.clickedClientX,
+          clickedWidth = _this$control7.clickedWidth,
+          clickedRightPos = _this$control7.clickedRightPos;
+      var clientX = event.clientX || event.touches && event.touches[0].pageX;
+      if (!clientX) return;
+
+      if (clickedClientX > clientX) {
+        // decrease
+        var diff = clickedClientX - clientX;
+        var newWidth = clickedWidth - diff;
+
+        if (newWidth - 12 >= 0) {
+          this.control.width = newWidth;
+          this.control.rightPos = clickedRightPos + diff;
+        } else {
+          this.control.width = 12;
+          this.control.rightPos = clickedRightPos + clickedWidth - 12;
+        }
+      } else {
+        var _diff = clientX - clickedClientX;
+
+        if (clickedRightPos - _diff >= 0) {
+          this.control.width = clickedWidth + _diff;
+          this.control.rightPos = clickedRightPos - _diff;
+        } else {
+          this.control.rightPos = 0;
+          this.control.width = clickedWidth + clickedRightPos;
+        }
+      }
+
+      moveControl(this.control);
+      this.redrawChartMovingControl(true);
     }
   }]);
 

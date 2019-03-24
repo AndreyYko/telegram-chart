@@ -10,7 +10,7 @@ const BUTTON_DISABLE_SIZE = '21px'
 
 const BG_ANIMATION_FRAMES = 60
 
-const cWidth = window.innerWidth * 0.9
+const cWidth = Math.floor(window.innerWidth * 0.9)
 const cHeight = CONTAINER_HEIGHT + 20 // for bottom labels
 
 const getMultiplier = period => (CONTAINER_HEIGHT / 6) / period
@@ -197,24 +197,64 @@ const createControl = (chartName, widthPx, rightPosPx) => {
   wrapper.style.width = `${widthPx}px`
   wrapper.style.right = `${rightPosPx}px`
   controlLeft.classList.add('timeline__control-left')
+  controlLeft.id = `${chartName}__timeline__control-left`
   controlRight.classList.add('timeline__control-right')
+  controlRight.id = `${chartName}__timeline__control-right`
   wrapper.appendChild(controlLeft)
   wrapper.appendChild(controlRight)
   document.querySelector('.timeline').appendChild(wrapper)
   return { wrapper, controlLeft, controlRight }
 }
 
-const calculateCurrentValues = (values, controlW, controlPos) => {
+const calculateBetweenValues = (values) => {
+  const res = [...values]
+  const betweenValuesCount = 5
+  for (let i = 0; i < values.length - 1; i++) {
+    const max = Math.max(values[i], values[i + 1])
+    const t = Math.abs(values[i] - values[i + 1]) / betweenValuesCount
+    let temp = []
+    for (let k = 1; k < betweenValuesCount; k++) {
+      if (max === values[i]) {
+        temp.push(values[i] - (k * t))
+      } else {
+        temp.push(values[i] + (k * t))
+      }
+    }
+    res.splice(((i + 1) * 2) - 1, 0, temp)
+  }
+  return res.flat()
+}
+
+let tempSlicePos = null
+
+const calculateCurrentValues = (values, controlW, controlPos, isRightControl = false) => {
+  let res
   const width = Math.floor((controlW) / cWidth * 100)
   const elCount = Math.floor(values.length * (width / 100))
   const posPercent = Math.floor(controlPos / cWidth * 100)
   const posToElCount = Math.floor(values.length * (posPercent / 100))
-  return values.slice(values.length - posToElCount - elCount, values.length - posToElCount)
+  const slicePos = values.length - posToElCount - elCount
+  if (isRightControl) {
+    if (!tempSlicePos) tempSlicePos = slicePos
+  } else {
+    tempSlicePos = null
+  }
+  if (cWidth - controlW === controlPos) {
+    res = values.slice(0, values.length - posToElCount)
+  } else {
+    if (!tempSlicePos) {
+      res = values.slice(values.length - posToElCount - elCount, values.length - posToElCount)
+    } else {
+      res = values.slice(tempSlicePos, values.length - posToElCount)
+    }
+  }
+  return res
 }
 
-const moveControl = (control) => {
-  const { rightPos, wrapper } = control
+const moveControl = control => {
+  const { rightPos, width, wrapper } = control
   wrapper.style.right = rightPos + 'px'
+  wrapper.style.width = width + 'px'
 }
 
 const isAndroid = () => navigator.userAgent.toLowerCase().indexOf('android') > -1

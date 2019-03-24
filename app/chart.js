@@ -17,6 +17,9 @@ class Chart {
     width: 100, // px
     rightPos: 0,
     clickedLayerX: null,
+    clickedWidth: null,
+    clickedClientX: null,
+    clickedRightPos: null,
     isActive: false
   }
 
@@ -32,6 +35,8 @@ class Chart {
     this.chartName = name
     this.calculateChartData(data)
     this.controlMoveHandler = this.controlMoveHandler.bind(this)
+    this.controlLeftMoveHandler = this.controlLeftMoveHandler.bind(this)
+    this.controlRightMoveHandler = this.controlRightMoveHandler.bind(this)
   }
   init () {
     this.createBackgroundContexts()
@@ -87,6 +92,7 @@ class Chart {
           name: label,
           title: names[label],
           values: column,
+          moreValues: calculateBetweenValues(column),
           currentValues: [],
           color: colors[label],
           max: Math.max(...column),
@@ -102,7 +108,7 @@ class Chart {
     const { columns, contexts, xValues, control: { width, rightPos } } = this
     const { bg, xl, yl, yfl } = contexts
     columns.forEach(column => {
-      column.currentValues = calculateCurrentValues(column.values, width, rightPos)
+      column.currentValues = calculateCurrentValues(column.moreValues, width, rightPos)
       column.currentValuesMax = Math.max(...column.currentValues)
     })
     const maxValue = Math.max(...columns.map(column => column.isVisible && column.currentValuesMax))
@@ -115,12 +121,12 @@ class Chart {
       drawChartLine(column, this.currentMultiplier)
     })
   }
-  redrawChartMovingControl () {
+  redrawChartMovingControl (isRightControl = false) {
     const { columns, contexts, xValues, control: { width, rightPos } } = this
-    if (columns[0].currentValues.equals(calculateCurrentValues(columns[0].values, width, rightPos))) return
-    const { bg, xl, yl, yfl } = contexts
+    if (columns[0].currentValues.equals(calculateCurrentValues(columns[0].moreValues, width, rightPos, isRightControl))) return
+    const { xl } = contexts
     columns.forEach(column => {
-      column.currentValues = calculateCurrentValues(column.values, width, rightPos)
+      column.currentValues = calculateCurrentValues(column.moreValues, width, rightPos, isRightControl)
       column.currentValuesMax = Math.max(...column.currentValues)
     })
     const maxValue = Math.max(...columns.map(column => column.isVisible && column.currentValuesMax))
@@ -134,7 +140,7 @@ class Chart {
       this.chartYLabelAnimation(prevMultiplier)
     }
     columns.forEach(column => {
-      drawChartLine(column, this.currentMultiplier)
+      if (column.isVisible) drawChartLine(column, this.currentMultiplier)
     })
   }
   drawTimeline () {
@@ -149,7 +155,7 @@ class Chart {
   redrawChartWithAnimation () {
     const { columns, control: { width, rightPos } } = this
     columns.forEach(column => {
-      column.currentValues = calculateCurrentValues(column.values, width, rightPos)
+      column.currentValues = calculateCurrentValues(column.moreValues, width, rightPos)
       column.currentValuesMax = Math.max(...column.currentValues)
     })
     const maxCurrentValue = Math.max(...columns.map(column => column.isVisible && column.currentValuesMax))
@@ -265,19 +271,37 @@ class Chart {
       this.control.isActive = false
       window.removeEventListener('mousemove', this.controlMoveHandler)
       window.removeEventListener('touchmove', this.controlMoveHandler)
+      window.removeEventListener('mousemove', this.controlLeftMoveHandler)
+      window.removeEventListener('touchmove', this.controlLeftMoveHandler)
+      window.removeEventListener('mousemove', this.controlRightMoveHandler)
+      window.removeEventListener('touchmove', this.controlRightMoveHandler)
     }
   }
   controlMouseDownHandler (event) {
-    this.control.clickedLayerX = getLayerX(event)
+    const { controlLeft, controlRight, width, rightPos } = this.control
+    const { target: { id } } = event
     this.control.isActive = true
-    window.addEventListener('mousemove', this.controlMoveHandler)
-    window.addEventListener('touchmove', this.controlMoveHandler)
+    this.control.clickedWidth = width
+    this.control.clickedRightPos = rightPos
+    if (id === controlLeft.id) {
+      this.control.clickedClientX = event.clientX || (event.touches && event.touches[0].clientX)
+      window.addEventListener('mousemove', this.controlLeftMoveHandler)
+      window.addEventListener('touchmove', this.controlLeftMoveHandler)
+    } else if (id === controlRight.id) {
+      this.control.clickedClientX = event.clientX || (event.touches && event.touches[0].clientX)
+      window.addEventListener('mousemove', this.controlRightMoveHandler)
+      window.addEventListener('touchmove', this.controlRightMoveHandler)
+    } else {
+      this.control.clickedLayerX = getLayerX(event)
+      window.addEventListener('mousemove', this.controlMoveHandler)
+      window.addEventListener('touchmove', this.controlMoveHandler)
+    }
   }
   controlMoveHandler (event) {
     const { clickedLayerX, width: controlWidth } = this.control
     const leftPadding = (window.innerWidth - cWidth) / 2
     const timelineWidthWithoutControl = cWidth - controlWidth
-    const clientX = event.clientX || event.touches[0].pageX
+    const clientX = event.clientX || (event.touches && event.touches[0].pageX)
     const newRightPos = Math.floor((cWidth - (clientX - leftPadding)) - (controlWidth - clickedLayerX))
     if (newRightPos >= 0 && newRightPos <= timelineWidthWithoutControl) {
       this.control.rightPos = newRightPos
@@ -288,5 +312,57 @@ class Chart {
     }
     moveControl(this.control)
     this.redrawChartMovingControl()
+  }
+  controlLeftMoveHandler (event) {
+    const { clickedClientX, clickedWidth, rightPos } = this.control
+    const clientX = event.clientX || (event.touches && event.touches[0].pageX)
+    if (!clientX) return
+    if (clickedClientX > clientX) {
+      // increase
+      const newWidth = clickedWidth + (clickedClientX - clientX)
+      if (newWidth <= cWidth - rightPos) {
+        this.control.width = newWidth
+      } else {
+        this.control.width = cWidth - rightPos
+      }
+    } else {
+      const newWidth = (clickedWidth - (clientX - clickedClientX))
+      // 12 = 2 borders of 6px
+      if (newWidth - 12 >= 0) {
+        this.control.width = newWidth
+      } else {
+        this.control.width = 12
+      }
+    }
+    moveControl(this.control)
+    this.redrawChartMovingControl()
+  }
+  controlRightMoveHandler (event) {
+    const { clickedClientX, clickedWidth, clickedRightPos } = this.control
+    const clientX = event.clientX || (event.touches && event.touches[0].pageX)
+    if (!clientX) return
+    if (clickedClientX > clientX) {
+      // decrease
+      const diff = clickedClientX - clientX
+      const newWidth = clickedWidth - diff
+      if (newWidth - 12 >= 0) {
+        this.control.width = newWidth
+        this.control.rightPos = clickedRightPos + diff
+      } else {
+        this.control.width = 12
+        this.control.rightPos = (clickedRightPos + clickedWidth) - 12
+      }
+    } else {
+      const diff = clientX - clickedClientX
+      if (clickedRightPos - diff >= 0) {
+        this.control.width = clickedWidth + diff
+        this.control.rightPos = clickedRightPos - diff
+      } else {
+        this.control.rightPos = 0
+        this.control.width = clickedWidth + clickedRightPos
+      }
+    }
+    moveControl(this.control)
+    this.redrawChartMovingControl(true)
   }
 }
