@@ -1,6 +1,7 @@
 body {
   width: 90%;
   margin: 0 auto;
+  touch-action: manipulation;
 }
 
 .canvases {
@@ -75,6 +76,7 @@ button {
   outline: none;
   margin-right: 15px;
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 button:last-child {

@@ -147,8 +147,14 @@ function () {
           controlLeft = _createControl2.controlLeft,
           controlRight = _createControl2.controlRight;
 
-      wrapper.addEventListener('mousedown', this.controlMouseDownHandler.bind(this));
-      window.addEventListener('mouseup', this.controlMouseUpHandler.bind(this));
+      if (isAndroid() || isIOS()) {
+        wrapper.addEventListener('touchstart', this.controlMouseDownHandler.bind(this));
+        window.addEventListener('touchend', this.controlMouseUpHandler.bind(this));
+      } else if (!isAndroid() && !isIOS()) {
+        wrapper.addEventListener('mousedown', this.controlMouseDownHandler.bind(this));
+        window.addEventListener('mouseup', this.controlMouseUpHandler.bind(this));
+      }
+
       this.control = _objectSpread({}, control, {
         wrapper: wrapper,
         controlLeft: controlLeft,
@@ -218,9 +224,47 @@ function () {
       });
     }
   }, {
+    key: "redrawChartMovingControl",
+    value: function redrawChartMovingControl() {
+      var _this5 = this;
+
+      var columns = this.columns,
+          contexts = this.contexts,
+          xValues = this.xValues,
+          _this$control2 = this.control,
+          width = _this$control2.width,
+          rightPos = _this$control2.rightPos;
+      if (columns[0].currentValues.equals(calculateCurrentValues(columns[0].values, width, rightPos))) return;
+      var bg = contexts.bg,
+          xl = contexts.xl,
+          yl = contexts.yl,
+          yfl = contexts.yfl;
+      columns.forEach(function (column) {
+        column.currentValues = calculateCurrentValues(column.values, width, rightPos);
+        column.currentValuesMax = Math.max.apply(Math, _toConsumableArray(column.currentValues));
+      });
+      var maxValue = Math.max.apply(Math, _toConsumableArray(columns.map(function (column) {
+        return column.isVisible && column.currentValuesMax;
+      })));
+      var prevPeriod = this.currentPeriod;
+      var prevMultiplier = this.currentMultiplier;
+      this.currentPeriod = getPeriod(maxValue);
+      this.currentMultiplier = getMultiplier(this.currentPeriod);
+      writeXLabels(xl, xValues);
+
+      if (prevPeriod !== this.currentPeriod) {
+        this.chartCoordsAnimation(prevMultiplier);
+        this.chartYLabelAnimation(prevMultiplier);
+      }
+
+      columns.forEach(function (column) {
+        drawChartLine(column, _this5.currentMultiplier);
+      });
+    }
+  }, {
     key: "drawTimeline",
     value: function drawTimeline() {
-      var _this5 = this;
+      var _this6 = this;
 
       var columns = this.columns;
       var maxValue = Math.max.apply(Math, _toConsumableArray(columns.map(function (column) {
@@ -229,18 +273,18 @@ function () {
       this.currentTimelinePeriod = getPeriod(maxValue);
       this.currentTimelineMultiplier = getTimelineMultiplier(this.currentTimelinePeriod);
       columns.forEach(function (column) {
-        drawTimelineChartLine(column, _this5.currentTimelineMultiplier);
+        drawTimelineChartLine(column, _this6.currentTimelineMultiplier);
       });
     }
   }, {
     key: "redrawChartWithAnimation",
     value: function redrawChartWithAnimation() {
-      var _this6 = this;
+      var _this7 = this;
 
       var columns = this.columns,
-          _this$control2 = this.control,
-          width = _this$control2.width,
-          rightPos = _this$control2.rightPos;
+          _this$control3 = this.control,
+          width = _this$control3.width,
+          rightPos = _this$control3.rightPos;
       columns.forEach(function (column) {
         column.currentValues = calculateCurrentValues(column.values, width, rightPos);
         column.currentValuesMax = Math.max.apply(Math, _toConsumableArray(column.currentValues));
@@ -267,12 +311,12 @@ function () {
       } else {
         this.chartCoordsAnimation(prevMultiplier);
         this.chartYLabelAnimation(prevMultiplier);
-        columns.map(function (column) {
-          var isChangeAlpha = column.name === _this6.currentColumn.name;
+        columns.forEach(function (column) {
+          var isChangeAlpha = column.name === _this7.currentColumn.name;
 
-          _this6.chartColumnAnimation(prevMultiplier, column, isChangeAlpha);
+          _this7.chartColumnAnimation(prevMultiplier, column, isChangeAlpha);
 
-          _this6.chartTimelineColumnAnimation(prevTimelineMultiplier, column, isChangeAlpha);
+          _this7.chartTimelineColumnAnimation(prevTimelineMultiplier, column, isChangeAlpha);
         });
       }
     }
@@ -284,13 +328,11 @@ function () {
       var isUp = prevMultiplier < currentMultiplier;
       var frameCount = BG_ANIMATION_FRAMES;
       var step = 0;
-      var alpha = 0;
 
       function animate() {
         var req = requestAnimationFrame(animate);
-        drawAnimatedCoords(bg, isUp, step, alpha / 10);
+        drawAnimatedCoords(bg, isUp, step);
         step += BG_ANIMATION_FRAMES / 10;
-        alpha++;
         if (step > frameCount) cancelAnimationFrame(req);
       }
 
@@ -400,29 +442,30 @@ function () {
   }, {
     key: "controlMouseUpHandler",
     value: function controlMouseUpHandler() {
-      console.log(this.control.isActive);
-
       if (this.control.isActive) {
         this.control.isActive = false;
         window.removeEventListener('mousemove', this.controlMoveHandler);
+        window.removeEventListener('touchmove', this.controlMoveHandler);
       }
     }
   }, {
     key: "controlMouseDownHandler",
     value: function controlMouseDownHandler(event) {
-      this.control.clickedLayerX = event.layerX;
+      this.control.clickedLayerX = getLayerX(event);
       this.control.isActive = true;
       window.addEventListener('mousemove', this.controlMoveHandler);
+      window.addEventListener('touchmove', this.controlMoveHandler);
     }
   }, {
     key: "controlMoveHandler",
     value: function controlMoveHandler(event) {
-      var _this$control3 = this.control,
-          clickedLayerX = _this$control3.clickedLayerX,
-          controlWidth = _this$control3.width;
+      var _this$control4 = this.control,
+          clickedLayerX = _this$control4.clickedLayerX,
+          controlWidth = _this$control4.width;
       var leftPadding = (window.innerWidth - cWidth) / 2;
       var timelineWidthWithoutControl = cWidth - controlWidth;
-      var newRightPos = Math.floor(cWidth - (event.clientX - leftPadding) - (controlWidth - clickedLayerX));
+      var clientX = event.clientX || event.touches[0].pageX;
+      var newRightPos = Math.floor(cWidth - (clientX - leftPadding) - (controlWidth - clickedLayerX));
 
       if (newRightPos >= 0 && newRightPos <= timelineWidthWithoutControl) {
         this.control.rightPos = newRightPos;
@@ -433,7 +476,7 @@ function () {
       }
 
       moveControl(this.control);
-      this.drawChart();
+      this.redrawChartMovingControl();
     }
   }]);
 

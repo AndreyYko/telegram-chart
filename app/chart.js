@@ -66,8 +66,13 @@ class Chart {
   createControl () {
     const { chartName, control }  = this
     const { wrapper, controlLeft, controlRight } = createControl(chartName, control.width, control.rightPos)
-    wrapper.addEventListener('mousedown', this.controlMouseDownHandler.bind(this))
-    window.addEventListener('mouseup', this.controlMouseUpHandler.bind(this))
+    if (isAndroid() || isIOS()) {
+      wrapper.addEventListener('touchstart', this.controlMouseDownHandler.bind(this))
+      window.addEventListener('touchend', this.controlMouseUpHandler.bind(this))
+    } else if (!isAndroid() && !isIOS()) {
+      wrapper.addEventListener('mousedown', this.controlMouseDownHandler.bind(this))
+      window.addEventListener('mouseup', this.controlMouseUpHandler.bind(this))
+    }
     this.control = { ...control, wrapper, controlLeft, controlRight }
   }
   calculateChartData (data) {
@@ -110,6 +115,28 @@ class Chart {
       drawChartLine(column, this.currentMultiplier)
     })
   }
+  redrawChartMovingControl () {
+    const { columns, contexts, xValues, control: { width, rightPos } } = this
+    if (columns[0].currentValues.equals(calculateCurrentValues(columns[0].values, width, rightPos))) return
+    const { bg, xl, yl, yfl } = contexts
+    columns.forEach(column => {
+      column.currentValues = calculateCurrentValues(column.values, width, rightPos)
+      column.currentValuesMax = Math.max(...column.currentValues)
+    })
+    const maxValue = Math.max(...columns.map(column => column.isVisible && column.currentValuesMax))
+    const prevPeriod = this.currentPeriod
+    const prevMultiplier = this.currentMultiplier
+    this.currentPeriod = getPeriod(maxValue)
+    this.currentMultiplier = getMultiplier(this.currentPeriod)
+    writeXLabels(xl, xValues)
+    if (prevPeriod !== this.currentPeriod) {
+      this.chartCoordsAnimation(prevMultiplier)
+      this.chartYLabelAnimation(prevMultiplier)
+    }
+    columns.forEach(column => {
+      drawChartLine(column, this.currentMultiplier)
+    })
+  }
   drawTimeline () {
     const { columns } = this
     const maxValue = Math.max(...columns.map(column => column.isVisible && column.max))
@@ -141,7 +168,7 @@ class Chart {
     } else {
       this.chartCoordsAnimation(prevMultiplier)
       this.chartYLabelAnimation(prevMultiplier)
-      columns.map(column => {
+      columns.forEach(column => {
           const isChangeAlpha = column.name === this.currentColumn.name
           this.chartColumnAnimation(prevMultiplier, column, isChangeAlpha)
           this.chartTimelineColumnAnimation(prevTimelineMultiplier, column, isChangeAlpha)
@@ -153,12 +180,10 @@ class Chart {
     const isUp = prevMultiplier < currentMultiplier
     const frameCount = BG_ANIMATION_FRAMES
     let step = 0
-    let alpha = 0
     function animate () {
       const req = requestAnimationFrame(animate)
-      drawAnimatedCoords(bg, isUp, step, alpha / 10)
+      drawAnimatedCoords(bg, isUp, step)
       step += BG_ANIMATION_FRAMES / 10
-      alpha++
       if (step > frameCount) cancelAnimationFrame(req)
     }
     animate()
@@ -236,22 +261,24 @@ class Chart {
     this.redrawChartWithAnimation()
   }
   controlMouseUpHandler () {
-    console.log(this.control.isActive)
     if (this.control.isActive) {
       this.control.isActive = false
       window.removeEventListener('mousemove', this.controlMoveHandler)
+      window.removeEventListener('touchmove', this.controlMoveHandler)
     }
   }
   controlMouseDownHandler (event) {
-    this.control.clickedLayerX = event.layerX
+    this.control.clickedLayerX = getLayerX(event)
     this.control.isActive = true
     window.addEventListener('mousemove', this.controlMoveHandler)
+    window.addEventListener('touchmove', this.controlMoveHandler)
   }
   controlMoveHandler (event) {
     const { clickedLayerX, width: controlWidth } = this.control
     const leftPadding = (window.innerWidth - cWidth) / 2
     const timelineWidthWithoutControl = cWidth - controlWidth
-    const newRightPos = Math.floor((cWidth - (event.clientX - leftPadding)) - (controlWidth - clickedLayerX))
+    const clientX = event.clientX || event.touches[0].pageX
+    const newRightPos = Math.floor((cWidth - (clientX - leftPadding)) - (controlWidth - clickedLayerX))
     if (newRightPos >= 0 && newRightPos <= timelineWidthWithoutControl) {
       this.control.rightPos = newRightPos
     } else if (newRightPos < 0) {
@@ -260,6 +287,6 @@ class Chart {
       this.control.rightPos = timelineWidthWithoutControl
     }
     moveControl(this.control)
-    this.drawChart()
+    this.redrawChartMovingControl()
   }
 }

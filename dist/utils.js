@@ -9,7 +9,7 @@ var COLOR_GREY = 'rgba(168, 168, 168, 1)';
 var COLOR_WHITE = '#fff';
 var BUTTON_ENABLED_SIZE = '25px';
 var BUTTON_DISABLE_SIZE = '21px';
-var BG_ANIMATION_FRAMES = 50;
+var BG_ANIMATION_FRAMES = 60;
 var cWidth = window.innerWidth * 0.9;
 var cHeight = CONTAINER_HEIGHT + 20; // for bottom labels
 
@@ -108,15 +108,14 @@ var drawCoords = function drawCoords(ctx, yfl) {
 
 var drawAnimatedCoords = function drawAnimatedCoords(ctx, isUp) {
   var point = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 0;
-  var alphaDiff = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : 0;
   ctx.clearRect(0, 0, cWidth, cHeight);
+  var from = isUp ? 0 : 1;
+  var to = isUp ? 6 : 7;
 
-  for (var i = 0; i < 6; i++) {
+  for (var i = from; i < to; i++) {
     var y = CONTAINER_HEIGHT - 60 * i;
     y = isUp ? y - point : y + point;
-    var yNext = isUp ? y + BG_ANIMATION_FRAMES : y - BG_ANIMATION_FRAMES;
-    drawLine(ctx, 0, y, cWidth, y, 1, "rgba(239, 239, 239, ".concat(1 - alphaDiff, ")"));
-    drawLine(ctx, 0, yNext, cWidth, yNext, "rgba(239, 239, 239, ".concat(alphaDiff, ")")); // +- 50 because there are 50 frames in animation
+    drawLine(ctx, 0, y, cWidth, y, 1, COLOR_GREY_LIGHT);
   }
 };
 
@@ -134,7 +133,6 @@ var writeXLabels = function writeXLabels(ctx, values) {
 
 var writeYLabels = function writeYLabels(ctx, yfl, period) {
   ctx.clearRect(0, 0, cWidth, cHeight);
-  yfl.clearRect(0, 0, cWidth, cHeight);
   yfl.fillText('0', 0, CONTAINER_HEIGHT - 5);
 
   for (var i = 1; i < 6; i++) {
@@ -250,10 +248,10 @@ var createControl = function createControl(chartName, widthPx, rightPosPx) {
 };
 
 var calculateCurrentValues = function calculateCurrentValues(values, controlW, controlPos) {
-  var width = (controlW - 2) / cWidth * 100;
-  var elCount = values.length * (width / 100);
-  var posPercent = controlPos / cWidth * 100;
-  var posToElCount = values.length * (posPercent / 100);
+  var width = Math.floor(controlW / cWidth * 100);
+  var elCount = Math.floor(values.length * (width / 100));
+  var posPercent = Math.floor(controlPos / cWidth * 100);
+  var posToElCount = Math.floor(values.length * (posPercent / 100));
   return values.slice(values.length - posToElCount - elCount, values.length - posToElCount);
 };
 
@@ -261,4 +259,45 @@ var moveControl = function moveControl(control) {
   var rightPos = control.rightPos,
       wrapper = control.wrapper;
   wrapper.style.right = rightPos + 'px';
+};
+
+var isAndroid = function isAndroid() {
+  return navigator.userAgent.toLowerCase().indexOf('android') > -1;
+};
+
+var isIOS = function isIOS() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+};
+
+var getLayerX = function getLayerX(evt) {
+  var el = evt.target;
+  var x = 0;
+
+  while (el && !isNaN(el.offsetLeft)) {
+    x += el.offsetLeft - el.scrollLeft;
+    el = el.offsetParent;
+  }
+
+  x = (evt.clientX || evt.touches[0].clientX) - x;
+  return x;
+};
+
+Array.prototype.equals = function (array) {
+  // if the other array is a falsy value, return
+  if (!array) return false; // compare lengths - can save a lot of time
+
+  if (this.length !== array.length) return false;
+
+  for (var i = 0, l = this.length; i < l; i++) {
+    // Check if we have nested arrays
+    if (this[i] instanceof Array && array[i] instanceof Array) {
+      // recurse into the nested arrays
+      if (!this[i].equals(array[i])) return false;
+    } else if (this[i] !== array[i]) {
+      // Warning - two different object instances will never be equal: {x:20} != {x:20}
+      return false;
+    }
+  }
+
+  return true;
 };

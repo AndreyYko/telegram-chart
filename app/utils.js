@@ -8,7 +8,7 @@ const COLOR_WHITE = '#fff'
 const BUTTON_ENABLED_SIZE = '25px'
 const BUTTON_DISABLE_SIZE = '21px'
 
-const BG_ANIMATION_FRAMES = 50
+const BG_ANIMATION_FRAMES = 60
 
 const cWidth = window.innerWidth * 0.9
 const cHeight = CONTAINER_HEIGHT + 20 // for bottom labels
@@ -83,15 +83,14 @@ const drawCoords = (ctx, yfl) => {
   }
 }
 
-const drawAnimatedCoords = (ctx, isUp, point = 0, alphaDiff = 0) => {
+const drawAnimatedCoords = (ctx, isUp, point = 0) => {
   ctx.clearRect(0, 0, cWidth, cHeight)
-  for (let i = 0; i < 6; i++) {
+  const from = isUp ? 0 : 1
+  const to = isUp ? 6 : 7
+  for (let i = from; i < to; i++) {
     let y = CONTAINER_HEIGHT - (60 * i)
     y = isUp ? y - point : y + point
-    const yNext = isUp ? y + BG_ANIMATION_FRAMES : y - BG_ANIMATION_FRAMES
-    drawLine(ctx, 0, y, cWidth, y, 1, `rgba(239, 239, 239, ${1 - alphaDiff})`)
-    drawLine(ctx, 0, yNext, cWidth, yNext, `rgba(239, 239, 239, ${alphaDiff})`)
-    // +- 50 because there are 50 frames in animation
+    drawLine(ctx, 0, y, cWidth, y, 1, COLOR_GREY_LIGHT)
   }
 }
 
@@ -107,7 +106,6 @@ const writeXLabels = (ctx, values) => {
 
 const writeYLabels = (ctx, yfl, period) => {
   ctx.clearRect(0, 0, cWidth, cHeight)
-  yfl.clearRect(0, 0, cWidth, cHeight)
   yfl.fillText('0', 0, CONTAINER_HEIGHT - 5)
   for (let i = 1; i < 6; i++) {
     const y = (CONTAINER_HEIGHT - (60 * i)) - 5 // -5 for label visibility
@@ -211,12 +209,49 @@ const calculateCurrentValues = (values, controlW, controlPos) => {
   const elCount = Math.floor(values.length * (width / 100))
   const posPercent = Math.floor(controlPos / cWidth * 100)
   const posToElCount = Math.floor(values.length * (posPercent / 100))
-  console.log(width, elCount, posPercent, posToElCount)
   return values.slice(values.length - posToElCount - elCount, values.length - posToElCount)
 }
 
 const moveControl = (control) => {
   const { rightPos, wrapper } = control
   wrapper.style.right = rightPos + 'px'
+}
 
+const isAndroid = () => navigator.userAgent.toLowerCase().indexOf('android') > -1
+
+const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+const getLayerX = (evt) => {
+  let el = evt.target
+  let x = 0
+  while (el && !isNaN(el.offsetLeft)) {
+    x += el.offsetLeft - el.scrollLeft
+    el = el.offsetParent
+  }
+  x = (evt.clientX || evt.touches[0].clientX) - x
+  return x
+}
+
+
+Array.prototype.equals = function (array) {
+  // if the other array is a falsy value, return
+  if (!array)
+    return false
+  // compare lengths - can save a lot of time
+  if (this.length !== array.length)
+    return false
+
+  for (let i = 0, l = this.length; i < l; i++) {
+    // Check if we have nested arrays
+    if (this[i] instanceof Array && array[i] instanceof Array) {
+      // recurse into the nested arrays
+      if (!this[i].equals(array[i]))
+        return false
+    }
+    else if (this[i] !== array[i]) {
+      // Warning - two different object instances will never be equal: {x:20} != {x:20}
+      return false
+    }
+  }
+  return true
 }
