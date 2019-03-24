@@ -9,6 +9,7 @@ class Chart {
   }
   columns = []
   xValues = null
+  currentXValues = null
 
   control = {
     wrapper: null,
@@ -111,11 +112,12 @@ class Chart {
       column.currentValues = calculateCurrentValues(column.moreValues, width, rightPos)
       column.currentValuesMax = Math.max(...column.currentValues)
     })
+    this.currentXValues = calculateCurrentValues(xValues, width, rightPos)
     const maxValue = Math.max(...columns.map(column => column.isVisible && column.currentValuesMax))
     this.currentPeriod = getPeriod(maxValue)
     this.currentMultiplier = getMultiplier(this.currentPeriod)
     drawCoords(bg, yfl)
-    writeXLabels(xl, xValues)
+    writeXLabels(xl, this.currentXValues)
     writeYLabels(yl, yfl, this.currentPeriod)
     columns.forEach(column => {
       drawChartLine(column, this.currentMultiplier)
@@ -129,12 +131,15 @@ class Chart {
       column.currentValues = calculateCurrentValues(column.moreValues, width, rightPos, isRightControl)
       column.currentValuesMax = Math.max(...column.currentValues)
     })
+    this.currentXValues = calculateCurrentValues(xValues, width, rightPos, isRightControl, true)
     const maxValue = Math.max(...columns.map(column => column.isVisible && column.currentValuesMax))
     const prevPeriod = this.currentPeriod
     const prevMultiplier = this.currentMultiplier
-    this.currentPeriod = getPeriod(maxValue)
-    this.currentMultiplier = getMultiplier(this.currentPeriod)
-    writeXLabels(xl, xValues)
+    if (maxValue > 0) {
+      this.currentPeriod = getPeriod(maxValue)
+      this.currentMultiplier = getMultiplier(this.currentPeriod)
+    }
+    writeXLabels(xl, this.currentXValues)
     if (prevPeriod !== this.currentPeriod) {
       this.chartCoordsAnimation(prevMultiplier)
       this.chartYLabelAnimation(prevMultiplier)

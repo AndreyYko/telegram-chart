@@ -226,8 +226,9 @@ const calculateBetweenValues = (values) => {
 }
 
 let tempSlicePos = null
+let tempSliceXPos = null
 
-const calculateCurrentValues = (values, controlW, controlPos, isRightControl = false) => {
+const calculateCurrentValues = (values, controlW, controlPos, isRightControl = false, x = false) => {
   let res
   const width = Math.floor((controlW) / cWidth * 100)
   const elCount = Math.floor(values.length * (width / 100))
@@ -239,13 +240,20 @@ const calculateCurrentValues = (values, controlW, controlPos, isRightControl = f
   } else {
     tempSlicePos = null
   }
+  if (x) {
+    if (!tempSliceXPos) tempSliceXPos = slicePos
+  } else if (!isRightControl && !x) {
+    tempSliceXPos = null
+  }
   if (cWidth - controlW === controlPos) {
     res = values.slice(0, values.length - posToElCount)
   } else {
-    if (!tempSlicePos) {
+    if (!tempSlicePos && !x) {
       res = values.slice(values.length - posToElCount - elCount, values.length - posToElCount)
-    } else {
+    } else if (tempSlicePos && !x) {
       res = values.slice(tempSlicePos, values.length - posToElCount)
+    } else if (tempSliceXPos && x) {
+      res = values.slice(tempSliceXPos, values.length - posToElCount)
     }
   }
   return res

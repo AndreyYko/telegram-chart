@@ -43,6 +43,8 @@ function () {
 
     _defineProperty(this, "xValues", null);
 
+    _defineProperty(this, "currentXValues", null);
+
     _defineProperty(this, "control", {
       wrapper: null,
       left: null,
@@ -217,13 +219,14 @@ function () {
         column.currentValues = calculateCurrentValues(column.moreValues, width, rightPos);
         column.currentValuesMax = Math.max.apply(Math, _toConsumableArray(column.currentValues));
       });
+      this.currentXValues = calculateCurrentValues(xValues, width, rightPos);
       var maxValue = Math.max.apply(Math, _toConsumableArray(columns.map(function (column) {
         return column.isVisible && column.currentValuesMax;
       })));
       this.currentPeriod = getPeriod(maxValue);
       this.currentMultiplier = getMultiplier(this.currentPeriod);
       drawCoords(bg, yfl);
-      writeXLabels(xl, xValues);
+      writeXLabels(xl, this.currentXValues);
       writeYLabels(yl, yfl, this.currentPeriod);
       columns.forEach(function (column) {
         drawChartLine(column, _this4.currentMultiplier);
@@ -247,14 +250,19 @@ function () {
         column.currentValues = calculateCurrentValues(column.moreValues, width, rightPos, isRightControl);
         column.currentValuesMax = Math.max.apply(Math, _toConsumableArray(column.currentValues));
       });
+      this.currentXValues = calculateCurrentValues(xValues, width, rightPos, isRightControl, true);
       var maxValue = Math.max.apply(Math, _toConsumableArray(columns.map(function (column) {
         return column.isVisible && column.currentValuesMax;
       })));
       var prevPeriod = this.currentPeriod;
       var prevMultiplier = this.currentMultiplier;
-      this.currentPeriod = getPeriod(maxValue);
-      this.currentMultiplier = getMultiplier(this.currentPeriod);
-      writeXLabels(xl, xValues);
+
+      if (maxValue > 0) {
+        this.currentPeriod = getPeriod(maxValue);
+        this.currentMultiplier = getMultiplier(this.currentPeriod);
+      }
+
+      writeXLabels(xl, this.currentXValues);
 
       if (prevPeriod !== this.currentPeriod) {
         this.chartCoordsAnimation(prevMultiplier);

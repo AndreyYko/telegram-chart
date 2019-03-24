@@ -18,7 +18,7 @@ function init() {
       fourthChart = _parsedData[3],
       fifthChart = _parsedData[4];
 
-  var chart = new Chart('first-chart', firstChart);
+  var chart = new Chart('first-chart', fifthChart);
   chart.init();
 }
 

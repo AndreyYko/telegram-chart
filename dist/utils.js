@@ -282,9 +282,11 @@ var calculateBetweenValues = function calculateBetweenValues(values) {
 };
 
 var tempSlicePos = null;
+var tempSliceXPos = null;
 
 var calculateCurrentValues = function calculateCurrentValues(values, controlW, controlPos) {
   var isRightControl = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : false;
+  var x = arguments.length > 4 && arguments[4] !== undefined ? arguments[4] : false;
   var res;
   var width = Math.floor(controlW / cWidth * 100);
   var elCount = Math.floor(values.length * (width / 100));
@@ -298,13 +300,21 @@ var calculateCurrentValues = function calculateCurrentValues(values, controlW, c
     tempSlicePos = null;
   }
 
+  if (x) {
+    if (!tempSliceXPos) tempSliceXPos = slicePos;
+  } else if (!isRightControl && !x) {
+    tempSliceXPos = null;
+  }
+
   if (cWidth - controlW === controlPos) {
     res = values.slice(0, values.length - posToElCount);
   } else {
-    if (!tempSlicePos) {
+    if (!tempSlicePos && !x) {
       res = values.slice(values.length - posToElCount - elCount, values.length - posToElCount);
-    } else {
+    } else if (tempSlicePos && !x) {
       res = values.slice(tempSlicePos, values.length - posToElCount);
+    } else if (tempSliceXPos && x) {
+      res = values.slice(tempSliceXPos, values.length - posToElCount);
     }
   }
 
